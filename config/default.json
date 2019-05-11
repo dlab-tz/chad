@@ -1,18 +1,22 @@
 {
   "server": {
     "hostname": "0.0.0.0",
-    "port": 3002
+    "port": 3000
   },
   "logger": {
     "level": "info"
   },
   "aggregator": {
     "host": "https://odk.ona.io",
-    "user": "",
-    "password": "",
+    "user": "ashaban",
+    "password": "mwanamigu",
     "housesForm": {
       "id": "406639",
       "name": "Houses_Registration"
+    },
+    "householdForm": {
+      "id": "406637",
+      "name": "household_visit"
     },
     "chadForm": {
       "id": "405278",
@@ -20,6 +24,6 @@
     }
   },
   "google": {
-    "spreadsheetId": ""
+    "spreadsheetId": "17rlf9se1ab3zVYqShQXqG4z-Aa_YAC-jaHI85vNITYs"
   }
 }
