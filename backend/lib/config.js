@@ -45,5 +45,12 @@ function setConf(key, value) {
   nconf.set(key, value);
 }
 
+setConf("DB_HOST", process.env.DB_HOST || getConf('mongo:host'))
+setConf("DB_NAME", process.env.DB_NAME || getConf('mongo:db'))
+setConf("DB_USER", process.env.DB_USER || getConf('mongo:user'))
+setConf("DB_PASSWORD", process.env.DB_PASSWORD || getConf('mongo:password'))
+setConf("DB_PORT", process.env.DB_PORT || getConf('mongo:port'))
+setConf("server:port", process.env.GOFR_PORT || getConf('server:port'))
+
 exports.getConf = getConf;
 exports.setConf = setConf;

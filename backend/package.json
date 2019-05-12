@@ -13,14 +13,23 @@
   "license": "ISC",
   "dependencies": {
     "async": "^2.6.2",
+    "bcrypt": "^3.0.6",
+    "body-parse": "^0.1.0",
+    "cors": "^2.8.5",
     "exceljs": "^1.9.1",
     "express": "^4.16.4",
+    "formidable": "^1.2.1",
     "googleapis": "^39.2.0",
+    "jsonwebtoken": "^8.5.1",
+    "mongoose": "^5.5.7",
     "nconf": "^0.10.0",
     "nodemon": "^1.19.0",
     "request": "^2.88.0",
     "stdio": "^0.2.7",
     "urijs": "^1.19.1",
     "winston": "^2.4.4"
+  },
+  "devDependencies": {
+    "vue-cli-plugin-vuetify": "^0.5.0"
   }
 }
