@@ -257,6 +257,308 @@ app.get('/getUsers', (req, res) => {
   })
 })
 
+app.post('/addRegion', (req, res) => {
+  const form = new formidable.IncomingForm();
+  form.parse(req, (err, fields, files) => {
+    winston.info("Received a request to add a region")
+    if (mongoUser && mongoPasswd) {
+      var uri = `mongodb://${mongoUser}:${mongoPasswd}@${mongoHost}:${mongoPort}/${database}`;
+    } else {
+      var uri = `mongodb://${mongoHost}:${mongoPort}/${database}`;
+    }
+    mongoose.connect(uri, {}, () => {
+      let Region = new models.RegionsModel({
+        name: fields.name,
+      })
+      Region.save((err, data) => {
+        if (err) {
+          winston.error(err)
+          res.status(500).json({
+            error: "Internal error occured"
+          })
+        } else {
+          winston.info("Region saved successfully")
+          res.status(200).json({id: data._id})
+        }
+      })
+    })
+  })
+})
+
+app.post('/addDistrict', (req, res) => {
+  const form = new formidable.IncomingForm();
+  form.parse(req, (err, fields, files) => {
+    winston.info("Received a request to add a district")
+    if (mongoUser && mongoPasswd) {
+      var uri = `mongodb://${mongoUser}:${mongoPasswd}@${mongoHost}:${mongoPort}/${database}`;
+    } else {
+      var uri = `mongodb://${mongoHost}:${mongoPort}/${database}`;
+    }
+    mongoose.connect(uri, {}, () => {
+      let District = new models.DistrictsModel({
+        name: fields.name,
+        parent: fields.parent
+      })
+      District.save((err, data) => {
+        if (err) {
+          winston.error(err)
+          res.status(500).json({
+            error: "Internal error occured"
+          })
+        } else {
+          winston.info("District saved successfully")
+          res.status(200).json({id: data._id})
+        }
+      })
+    })
+  })
+})
+
+app.post('/addFacility', (req, res) => {
+  const form = new formidable.IncomingForm();
+  form.parse(req, (err, fields, files) => {
+    winston.info("Received a request to add a facility")
+    if (mongoUser && mongoPasswd) {
+      var uri = `mongodb://${mongoUser}:${mongoPasswd}@${mongoHost}:${mongoPort}/${database}`;
+    } else {
+      var uri = `mongodb://${mongoHost}:${mongoPort}/${database}`;
+    }
+    mongoose.connect(uri, {}, () => {
+      let Facility = new models.FacilitiesModel({
+        name: fields.name,
+        parent: fields.parent
+      })
+      Facility.save((err, data) => {
+        if (err) {
+          winston.error(err)
+          res.status(500).json({
+            error: "Internal error occured"
+          })
+        } else {
+          winston.info("Facility saved successfully")
+          res.status(200).json({id: data._id})
+        }
+      })
+    })
+  })
+})
+
+app.post('/addVillage', (req, res) => {
+  const form = new formidable.IncomingForm();
+  form.parse(req, (err, fields, files) => {
+    winston.info("Received a request to add a village")
+    if (mongoUser && mongoPasswd) {
+      var uri = `mongodb://${mongoUser}:${mongoPasswd}@${mongoHost}:${mongoPort}/${database}`;
+    } else {
+      var uri = `mongodb://${mongoHost}:${mongoPort}/${database}`;
+    }
+    mongoose.connect(uri, {}, () => {
+      let Village = new models.VillagesModel({
+        name: fields.name,
+        parent: fields.parent
+      })
+      Village.save((err, data) => {
+        if (err) {
+          winston.error(err)
+          res.status(500).json({
+            error: "Internal error occured"
+          })
+        } else {
+          winston.info("Village saved successfully")
+          res.status(200).json({id: data._id})
+        }
+      })
+    })
+  })
+})
+
+app.post('/addCHA', (req, res) => {
+  const form = new formidable.IncomingForm();
+  form.parse(req, (err, fields, files) => {
+    winston.info("Received a request to add a CHA")
+    if (mongoUser && mongoPasswd) {
+      var uri = `mongodb://${mongoUser}:${mongoPasswd}@${mongoHost}:${mongoPort}/${database}`;
+    } else {
+      var uri = `mongodb://${mongoHost}:${mongoPort}/${database}`;
+    }
+    mongoose.connect(uri, {}, () => {
+      let CHA = new models.CHAModel({
+        firstName: fields.firstName,
+        otherName: fields.otherName,
+        surname: fields.surname,
+        email: fields.email,
+        phone1: fields.phone1,
+        phone2: fields.phone2,
+        village: fields.village
+      })
+      CHA.save((err, data) => {
+        if (err) {
+          winston.error(err)
+          res.status(500).json({
+            error: "Internal error occured"
+          })
+        } else {
+          winston.info("CHA saved successfully")
+          res.status(200).json({id: data._id})
+        }
+      })
+    })
+  })
+})
+
+app.post('/addHFS', (req, res) => {
+  const form = new formidable.IncomingForm();
+  form.parse(req, (err, fields, files) => {
+    winston.info("Received a request to add a CHA")
+    if (mongoUser && mongoPasswd) {
+      var uri = `mongodb://${mongoUser}:${mongoPasswd}@${mongoHost}:${mongoPort}/${database}`;
+    } else {
+      var uri = `mongodb://${mongoHost}:${mongoPort}/${database}`;
+    }
+    mongoose.connect(uri, {}, () => {
+      let HFS = new models.HFSModel({
+        firstName: fields.firstName,
+        otherName: fields.otherName,
+        surname: fields.surname,
+        email: fields.email,
+        phone1: fields.phone1,
+        phone2: fields.phone2,
+        facility: fields.facility
+      })
+      HFS.save((err, data) => {
+        if (err) {
+          winston.error(err)
+          res.status(500).json({
+            error: "Internal error occured"
+          })
+        } else {
+          winston.info("HFS saved successfully")
+          res.status(200).json({id: data._id})
+        }
+      })
+    })
+  })
+})
+
+app.get('/location/:type', (req, res) => {
+  let model = req.params.type + 'Model'
+  let id = req.query.id
+  let query
+  if(id) {
+    query = {id: id}
+  } else {
+    query = {}
+  }
+  if (mongoUser && mongoPasswd) {
+    var uri = `mongodb://${mongoUser}:${mongoPasswd}@${mongoHost}:${mongoPort}/${database}`;
+  } else {
+    var uri = `mongodb://${mongoHost}:${mongoPort}/${database}`;
+  }
+  mongoose.connect(uri, {}, () => {
+    models[model].find(query, (err, data) => {
+      res.status(200).json(data)
+    })
+  })
+})
+
+app.get('/locationTree', (req, res) => {
+  let id = req.query.id
+  let type = req.query.type
+  let lastLocationType = req.query.lastLocationType
+  let checkChild = JSON.parse(req.query.checkChild)
+  let model,childModel,typeTag
+  if(!type) {
+    model = "RegionsModel"
+    childModel = "DistrictsModel"
+    typeTag = "region"
+  } else if(type === 'region') {
+    model = 'DistrictsModel'
+    childModel = "FacilitiesModel"
+    typeTag = "district"
+  } else if(type === 'district') {
+    model = 'FacilitiesModel'
+    childModel = "VillagesModel"
+    typeTag = "facility"
+  } else {
+    model = 'VillagesModel'
+    childModel = null
+    typeTag = "village"
+  }
+  
+  let query
+  if(id) {
+    query = {parent: id}
+  } else {
+    query = {}
+  }
+  if (mongoUser && mongoPasswd) {
+    var uri = `mongodb://${mongoUser}:${mongoPasswd}@${mongoHost}:${mongoPort}/${database}`;
+  } else {
+    var uri = `mongodb://${mongoHost}:${mongoPort}/${database}`;
+  }
+  mongoose.connect(uri, {}, () => {
+    models[model].find(query, (err, data1) => {
+      data1 = JSON.parse(JSON.stringify(data1))
+      async.eachOf(data1, (dt, index, nxtDt) => {
+        let id = data1[index]._id
+        delete data1[index]._id
+        data1[index].id = id
+        data1[index].typeTag = typeTag
+        if(childModel && checkChild) {
+          models[childModel].find({'parent': dt.id}, (err, data2) => {
+            if(data2.length > 0 && lastLocationType != typeTag) {
+              data1[index].children = []
+            }
+            return nxtDt()
+          })
+        } else if(childModel) {
+          if(lastLocationType != typeTag) {
+            data1[index].children = []
+          }
+          return nxtDt()
+        } else {
+          return nxtDt()
+        }
+      }, () => {
+        res.status(200).json(data1)
+      })
+    })
+  })
+})
+
+app.get('/getLocationTree/:type', (req, res) => {
+  if (mongoUser && mongoPasswd) {
+    var uri = `mongodb://${mongoUser}:${mongoPasswd}@${mongoHost}:${mongoPort}/${database}`;
+  } else {
+    var uri = `mongodb://${mongoHost}:${mongoPort}/${database}`;
+  }
+  regions = []
+  mongoose.connect(uri, {}, () => {
+    models.RegionsModel.find({}, (err, data) => {
+      async.eachSeries(data, (region, nxtReg) => {
+        regions.push({
+          name: region.name,
+          id: region.id,
+          children: []
+        })
+        let children = []
+        models.DistrictsModel.find({region: region._id}, (err, data) => {
+          async.eachSeries(data, (district, nxtDistr) => {
+            children.push({
+              name: district.name,
+              id: district._id,
+              children: []
+            })
+            return nxtDistr()
+          }, () => {
+            regions[regions.length-1].children = children
+          })
+        })
+      })
+    })
+  })
+})
+
 app.all('/populateData', (req, res) => {
   let householdFormID = config.getConf("aggregator:householdForm:id")
   let householdFormName = config.getConf("aggregator:householdForm:name")

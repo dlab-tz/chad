@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "core-js": "^2.6.5",
+    "liquor-tree": "^0.2.56",
     "vue": "^2.6.10",
     "vue-cookies": "^1.5.13",
     "vue-router": "^3.0.3",

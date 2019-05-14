@@ -8,6 +8,67 @@
       <v-toolbar-title v-text="title"></v-toolbar-title>
       <v-spacer></v-spacer>
       <v-toolbar-items v-if="$store.state.auth.token">
+        <v-btn
+          flat
+          to="AddCHA"
+          v-if='!$store.state.denyAccess'
+        >
+          <v-icon>add</v-icon> Add CHA
+        </v-btn>
+        <v-btn
+          flat
+          to="AddHFS"
+          v-if='!$store.state.denyAccess'
+        >
+          <v-icon>add</v-icon> Add HFS
+        </v-btn>
+        <v-menu
+          open-on-hover
+          bottom
+          offset-y
+          v-if='!$store.state.denyAccess'
+        >
+          <v-btn
+            slot="activator"
+            flat
+          >
+            <v-icon>perm_identity</v-icon>Geographical Locations
+          </v-btn>
+          <v-list>
+            <v-list-tile
+              to="addRegion"
+              v-if='$store.state.auth.role === "Admin"'
+            >
+              <v-list-tile-title>
+                <v-icon>add</v-icon>Add Region
+              </v-list-tile-title>
+            </v-list-tile>
+            <v-list-tile
+              to="addDistrict"
+              v-if='$store.state.auth.role === "Admin"'
+            >
+              <v-list-tile-title>
+                <v-icon>add</v-icon>Add District
+              </v-list-tile-title>
+            </v-list-tile>
+            <v-list-tile
+              to="addFacility"
+              v-if='$store.state.auth.role === "Admin"'
+            >
+              <v-list-tile-title>
+                <v-icon>add</v-icon>Add Facility
+              </v-list-tile-title>
+            </v-list-tile>
+            <v-list-tile
+              to="addVillage"
+              v-if='$store.state.auth.role === "Admin"'
+            >
+              <v-list-tile-title>
+                <v-icon>add</v-icon>Add Village
+              </v-list-tile-title>
+            </v-list-tile>
+          </v-list>
+        </v-menu>
         <v-menu
           open-on-hover
           bottom

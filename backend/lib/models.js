@@ -55,7 +55,7 @@ let Districts = new mongoose.Schema({
     required: true,
     unique: true
   },
-  region: {
+  parent: {
     type: Schema.Types.ObjectId,
     ref: 'Regions',
     required: true
@@ -66,7 +66,7 @@ let Facilities = new mongoose.Schema({
     type: String,
     required: true
   },
-  district: {
+  parent: {
     type: Schema.Types.ObjectId,
     ref: 'Districts',
     required: true
@@ -77,7 +77,7 @@ let Villages = new mongoose.Schema({
     type: String,
     required: true
   },
-  facility: {
+  parent: {
     type: Schema.Types.ObjectId,
     ref: 'Facilities',
     required: true
@@ -144,6 +144,7 @@ let CHA = new mongoose.Schema({
 
 let RegionsModel = mongoose.model('Regions', Regions)
 let DistrictsModel = mongoose.model('Districts', Districts)
+let FacilitiesModel = mongoose.model('Facilities', Facilities)
 let VillagesModel = mongoose.model('Villages', Villages)
 let HFSModel = mongoose.model('HFS', HFS)
 let CHAModel = mongoose.model('CHA', CHA)
@@ -152,6 +153,7 @@ let UsersModel = mongoose.model('Users', Users)
 module.exports = {
   RegionsModel,
   DistrictsModel,
+  FacilitiesModel,
   VillagesModel,
   HFSModel,
   CHAModel,
