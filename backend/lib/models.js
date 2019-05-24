@@ -110,6 +110,9 @@ let HFS = new mongoose.Schema({
     type: Schema.Types.ObjectId,
     ref: 'Facilities',
     required: true
+  },
+  rapidproId: {
+    type: String
   }
 })
 let CHA = new mongoose.Schema({
@@ -139,6 +142,9 @@ let CHA = new mongoose.Schema({
     type: Schema.Types.ObjectId,
     ref: 'Villages',
     required: true
+  },
+  rapidproId: {
+    type: String
   }
 })
 

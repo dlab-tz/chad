@@ -20,7 +20,7 @@
   "aggregator": {
     "host": "https://odk.ona.io",
     "user": "ashaban",
-    "password": "mwanamigu",
+    "password": "JVqg7BPjTXpfN7g",
     "housesForm": {
       "id": "406639",
       "name": "Houses_Registration"
@@ -33,6 +33,10 @@
       "id": "405278",
       "name": "CHAD"
     }
+  },
+  "rapidpro": {
+    "host": "https://textit.in",
+    "token": "b52f9a033bbb721d75c9d9f804eb2a79709c4737"
   },
   "google": {
     "spreadsheetId": "17rlf9se1ab3zVYqShQXqG4z-Aa_YAC-jaHI85vNITYs"

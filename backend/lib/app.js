@@ -10,6 +10,7 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 const formidable = require('formidable');
 const aggregator = require('./aggregator')
+const rapidpro = require('./rapidpro')
 const config = require('./config');
 const models = require('./models');
 const mongo = require('./mongo')();
@@ -24,6 +25,7 @@ const app = express()
 let jwtValidator = function (req, res, next) {
   if (req.method == "OPTIONS" ||
     req.path == "/authenticate/" ||
+    req.path == "/syncContacts" ||
     req.path == "/" ||
     req.path.startsWith("/static/js") ||
     req.path.startsWith("/static/css") ||
@@ -703,8 +705,71 @@ app.all('/populateData', (req, res) => {
   }
 })
 
-app.post('/addRegion', (req, res) => {
-
+app.post('/syncContacts', (req, res) => {
+  async.series({
+    chaSync: (callback) => {
+      mongo.getCHA(null, (err, data) => {
+        async.each(data, (cha, nxtCha) => {
+          let urns = ["tel:+255" + cha.phone1.substring(1)]
+          if(cha.phone2 && cha.phone.length == 10) {
+            urns.push("tel:+255" + cha.phone2.substring(1))
+          }
+          let contact = {
+            "name": cha.firstName + " " + cha.otherName + " " + cha.surname,
+            "urns": urns,
+            "fields": {
+              "chadid": cha._id,
+              "category": "CHA",
+              "village": cha.village
+            }
+          }
+          rapidpro.addContact(contact, (err, newContact) => {
+            if(!err) {
+              mongo.updateCHARapidproId(newContact.fields.chadid, newContact.uuid, () => {
+                return nxtCha()
+              })
+            } else {
+              return nxtCha()
+            }
+          })
+        }, () => {
+          return callback(null, null)
+        })
+      })
+    },
+    hfsSync: (callback) => {
+      mongo.getHFS(null, (err, data) => {
+        async.each(data, (cha, nxtHfs) => {
+          let urns = ["tel:+255" + cha.phone1.substring(1)]
+          if(cha.phone2 && cha.phone2.length == 10) {
+            urns.push("tel:+255" + cha.phone2.substring(1))
+          }
+          let contact = {
+            "name": cha.firstName + " " + cha.otherName + " " + cha.surname,
+            "urns": urns,
+            "fields": {
+              "chadid": cha._id,
+              "category": "HFS",
+              "facility": cha.facility
+            }
+          }
+          rapidpro.addContact(contact, (err, newContact) => {
+            if(!err) {
+              mongo.updateHFSRapidproId(newContact.fields.chadid, newContact.uuid, () => {
+                return nxtHfs()
+              })
+            } else {
+              return nxtHfs()
+            }
+          })
+        }, () => {
+          return callback(null, null)
+        })
+      })
+    }
+  }, () => {
+    winston.info("Contacts sync is done")
+  })
 })
 
 app.listen(port, () => {

@@ -29,6 +29,62 @@ module.exports = function () {
           return callback(false, data)
         });
       })
+    },
+    updateCHARapidproId (chadid, uuid, callback) {
+      const mongoose = require('mongoose')
+      mongoose.connect(uri, {}, () => {
+        models.CHAModel.findByIdAndUpdate(chadid, {
+          rapidproId: uuid
+        }, (err, data) => {
+          if (err) {
+            return callback(err);
+          }
+          return callback(false, data)
+        });
+      })
+    },
+    updateHFSRapidproId (chadid, uuid, callback) {
+      const mongoose = require('mongoose')
+      mongoose.connect(uri, {}, () => {
+        models.HFSModel.findByIdAndUpdate(chadid, {
+          rapidproId: uuid
+        }, (err, data) => {
+          if (err) {
+            return callback(err);
+          }
+          return callback(false, data)
+        });
+      })
+    },
+    getCHA(id, callback) {
+      let query = {}
+      if(id) {
+        query = {id}
+      }
+      const mongoose = require('mongoose')
+      mongoose.connect(uri, {}, () => {
+        models.CHAModel.find(query, (err, data) => {
+          if (err) {
+            return callback(err);
+          }
+          return callback(false, data)
+        });
+      })
+    },
+    getHFS(id, callback) {
+      let query = {}
+      if(id) {
+        query = {id}
+      }
+      const mongoose = require('mongoose')
+      mongoose.connect(uri, {}, () => {
+        models.HFSModel.find(query, (err, data) => {
+          if (err) {
+            return callback(err);
+          }
+          return callback(false, data)
+        });
+      })
     }
-  };
-};
+  }
+}
