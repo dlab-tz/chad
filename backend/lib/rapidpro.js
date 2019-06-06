@@ -1,6 +1,8 @@
 require('./init');
 const winston = require('winston')
 const request = require('request')
+const async = require('async')
+const mongo = require('./mongo')()
 const URI = require('urijs')
 const config = require('./config');
 
@@ -75,7 +77,83 @@ const addContact = (contact, callback) => {
       })
     })
   }
+  const alertReferal = (CHAUsername, sms) => {
+    mongo.getCHAByUsername(CHAUsername, (err, cha) => {
+      if(err) {
+        winston.error(err)
+        return
+      }
+      if(cha.length == 0) {
+        return
+      }
+      let villageId = cha[0].village
+      mongo.getFacilityFromVillage(villageId, (err, facility) => {
+        if(err) {
+          winston.error(err)
+          return
+        }
+        try {
+          facility = JSON.parse(JSON.stringify(facility))
+        } catch (error) {
+          winston.error(error) 
+        }
+        if(facility.length == 0) {
+          return
+        }
+        let facilityId = facility[0]._id
+        mongo.getHFS(facilityId, (err, HFSs) => {
+          try {
+            HFSs = JSON.parse(JSON.stringify(HFSs))
+          } catch (error) {
+            winston.error(error) 
+          }
+          if(HFSs.length == 0) {
+            return
+          }
+          rp_ids = []
+          async.each(HFSs, (hfs, nxtHfs) => {
+            if(hfs.rapidproId) {
+              rp_ids.push(hfs.rapidproId)
+              return nxtHfs()
+            } else {
+              return nxtHfs()
+            }
+          }, () => {
+            if(rp_ids.length > 0) {
+              broadcast(rp_ids, sms)
+            }
+          })
+        })
+      })
+    })
+  }
+  const broadcast = (rapidpro_id, sms) => {
+    winston.error(rapidpro_id)
+    if(!Array.isArray(rapidpro_id)) {
+      winston.error("cant send broadcast message, rapidpro_id is not an array of ids")
+      return
+    }
+    let host = config.getConf('rapidpro:host')
+    let token = config.getConf('rapidpro:token')
+    let url = URI(host).segment('api/v2/broadcasts.json').toString()
+    let options = {
+      url: url,
+      headers: {
+        Authorization: `Token ${token}`
+      },
+      body: {
+        "contacts": rapidpro_id,
+        "text": sms
+      },
+      json: true
+    }
+    request.post(options, (err, res, body) => {
+      winston.error(body)
+      winston.info("Broadcast msg sent successfully")
+    })
+  }
 
   module.exports = {
-    addContact
+    addContact,
+    alertReferal
   }

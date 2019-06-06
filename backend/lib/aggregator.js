@@ -6,15 +6,13 @@ const URI = require('urijs')
 const fs = require('fs')
 
 const publishForm = (formId, formName, callback) => {
-  let username = config.getConf("aggregator:user")
-  let password = config.getConf("aggregator:password")
+  let token = config.getConf("aggregator:token")
   let host = config.getConf("aggregator:host")
-  let auth = "Basic " + new Buffer(username + ":" + password).toString("base64")
   let url = new URI(host).segment("/api/v1/forms").segment(formId).toString()
   let options = {
     url: url,
     headers: {
-      Authorization: auth
+      Authorization: `Token ${token}`
     },
     formData: {
       xls_file: fs.createReadStream(__dirname + '/' + formName + '.xlsx')
@@ -27,15 +25,13 @@ const publishForm = (formId, formName, callback) => {
 
 const downloadXLSForm = (formId, formName, callback) => {
   winston.info('Getting online XLSForm in XLS format...')
-  let username = config.getConf("aggregator:user")
-  let password = config.getConf("aggregator:password")
+  let token = config.getConf("aggregator:token")
   let host = config.getConf("aggregator:host")
-  let auth = "Basic " + new Buffer(username + ":" + password).toString("base64")
   let url = new URI(host).segment("/api/v1/forms/" + formId + '/form.xls').toString()
   let options = {
     url: url,
     headers: {
-      Authorization: auth
+      Authorization: `Token ${token}`
     }
   }
   let status = request.get(options)
@@ -95,9 +91,84 @@ const downloadFormData = (formId, callback) => {
   })
 }
 
+const populateHouses = (chadChoicesWorksheet, house_name, house_number, village, callback) => {
+  let lastRow = chadChoicesWorksheet.lastRow
+  let getRowInsert = chadChoicesWorksheet.getRow(++(lastRow.number))
+  getRowInsert.getCell(1).value = 'house_name'
+  getRowInsert.getCell(2).value = house_number
+  getRowInsert.getCell(3).value = house_name + ' - ' + house_number
+  getRowInsert.getCell(4).value = village
+  getRowInsert.commit()
+  return callback(false)
+}
+
+const populatePregnantWomen = (chadChoicesWorksheet, pregnant_wom_name, pregnant_wom_age, house_number, callback) => {
+  let lastRow = chadChoicesWorksheet.lastRow
+  let getRowInsert = chadChoicesWorksheet.getRow(++(lastRow.number))
+  getRowInsert.getCell(1).value = 'pregnant_women'
+  getRowInsert.getCell(2).value = pregnant_wom_name + ' - ' + pregnant_wom_age + ' - ' + house_number
+  getRowInsert.getCell(3).value = pregnant_wom_name + ' - ' + pregnant_wom_age + ' - ' + house_number
+  getRowInsert.getCell(4).value = house_number
+  getRowInsert.commit()
+  return callback(false)
+}
+
+const createAccount = (details, callback) => {
+  let formId = config.getConf("aggregator:householdForm:id")
+  let profile = {
+    username: details.odkUsername,
+    password: details.surname,
+    first_name: details.firstName,
+    last_name: details.surname,
+    email: details.email
+  }
+  let token = config.getConf("aggregator:token")
+  let host = config.getConf("aggregator:host")
+  let url = new URI(host).segment("/api/v1/profiles").toString()
+  let options = {
+    url: url,
+    headers: {
+      Authorization: `Token ${token}`
+    },
+    body: profile,
+    json: true
+  }
+  request.post(options, (err, res, body) => {
+    shareFormWithUser(formId, details.odkUsername, () => {
+      return callback()
+    })
+  })
+}
+
+const shareFormWithUser = (formId, username, callback) => {
+  let token = config.getConf("aggregator:token")
+  let host = config.getConf("aggregator:host")
+  let url = new URI(host).segment(`/api/v1/forms/${formId}/share`).toString()
+  let options = {
+    url: url,
+    headers: {
+      Authorization: `Token ${token}`
+    },
+    body: {
+      username: username,
+      role: 'dataentry'
+    },
+    json: true
+  }
+  request.post(options, (err, res, body) => {
+    winston.error(body)
+    winston.error(err)
+    return callback()
+  })
+}
+
 module.exports = {
   publishForm,
   downloadXLSForm,
   downloadJSONForm,
-  downloadFormData
+  downloadFormData,
+  populateHouses,
+  populatePregnantWomen,
+  createAccount,
+  shareFormWithUser
 }

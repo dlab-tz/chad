@@ -4,7 +4,7 @@
       row
       wrap>
       <v-spacer/>
-      <v-flex xs6>
+      <v-flex xs12>
         <v-alert
           style="width: 500px"
           v-model="alertSuccess"
@@ -25,7 +25,7 @@
         </v-alert>
         <v-card
           class="mx-auto"
-          style="max-width: 500px;">
+          style="max-width: 1000px;">
           <v-system-bar
             color="deep-purple darken-4"
             dark/>
@@ -39,72 +39,91 @@
           <v-form
             ref="form"
             class="pa-3 pt-4">
-            <v-text-field
-              required
-              @blur="$v.firstName.$touch()"
-              @change="$v.firstName.$touch()"
-              :error-messages="firstnameErrors"
-              v-model="firstName"
-              box
-              color="deep-purple"
-              label="First Name"/>
-            <v-text-field
-              v-model="otherName"
-              box
-              color="deep-purple"
-              label="Middle Names"/>
-            <v-text-field
-              required
-              @blur="$v.surname.$touch()"
-              @change="$v.surname.$touch()"
-              :error-messages="surnameErrors"
-              v-model="surname"
-              box
-              color="deep-purple"
-              label="Surname"/>
-            <v-text-field
-              required
-              @blur="$v.phone1.$touch()"
-              @change="$v.phone1.$touch()"
-              :error-messages="phone1Errors"
-              v-model="phone1"
-              box
-              color="deep-purple"
-              label="Mobile Phone 1"/>
-            <v-text-field
-              v-model="phone2"
-              box
-              color="deep-purple"
-              label="Mobile Phone 2"/>
-            <v-text-field
-              required
-              @blur="$v.email.$touch()"
-              @change="$v.email.$touch()"
-              :error-messages="emailErrors"
-              v-model="email"
-              box
-              color="deep-purple"
-              label="Email"/>
-            <v-treeview
-              :active.sync="active"
-              :open.sync="open"
-              :items="items"
-              :load-children="getLocation"
-              activatable
-              active-class="primary--text"
-              class="grey lighten-5"
-              open-on-click
-              transition
-            >
-              <template v-slot:prepend="{ item, active }">
-                <v-icon
-                  v-if="!item.children"
-                  :color="active ? 'primary' : ''"
+            <v-layout row>
+              <v-flex xs5>
+                <v-text-field
+                  required
+                  @blur="$v.firstName.$touch()"
+                  @change="$v.firstName.$touch()"
+                  :error-messages="firstnameErrors"
+                  v-model="firstName"
+                  box
+                  color="deep-purple"
+                  label="First Name*"/>
+                <v-text-field
+                  v-model="otherName"
+                  box
+                  color="deep-purple"
+                  label="Middle Names"/>
+                <v-text-field
+                  required
+                  @blur="$v.surname.$touch()"
+                  @change="$v.surname.$touch()"
+                  :error-messages="surnameErrors"
+                  v-model="surname"
+                  box
+                  color="deep-purple"
+                  label="Surname*"/>
+                <v-text-field
+                  required
+                  @blur="$v.phone1.$touch()"
+                  @change="$v.phone1.$touch()"
+                  :error-messages="phone1Errors"
+                  v-model="phone1"
+                  box
+                  color="deep-purple"
+                  label="Mobile Phone 1*"/>
+              </v-flex>
+              <v-spacer></v-spacer>
+              <v-flex xs5>
+                <v-text-field
+                  v-model="phone2"
+                  box
+                  color="deep-purple"
+                  label="Mobile Phone 2"/>
+                <v-text-field
+                  required
+                  @blur="$v.email.$touch()"
+                  @change="$v.email.$touch()"
+                  :error-messages="emailErrors"
+                  v-model="email"
+                  box
+                  color="deep-purple"
+                  label="Email*"/>
+                <v-text-field
+                  required
+                  @blur="$v.odkUsername.$touch()"
+                  @change="$v.odkUsername.$touch()"
+                  :error-messages="odkUsernameErrors"
+                  v-model="odkUsername"
+                  box
+                  color="deep-purple"
+                  label="ODK Username*"/>
+                  <label class="text-sm mt-2 text-red" v-if="$v.$error">
+                    <label v-if="!$v.odkUsernameUnique" style="color: red">This username is already taken</label>
+                  </label>
+                <v-treeview
+                  :active.sync="active"
+                  :open.sync="open"
+                  :items="items"
+                  :load-children="getLocation"
+                  activatable
+                  active-class="primary--text"
+                  class="grey lighten-5"
+                  open-on-click
+                  transition
                 >
-                  mdi-account
-                </v-icon>
-              </template>
-            </v-treeview>
+                  <template v-slot:prepend="{ item, active }">
+                    <v-icon
+                      v-if="!item.children"
+                      :color="active ? 'primary' : ''"
+                    >
+                      mdi-account
+                    </v-icon>
+                  </template>
+                </v-treeview>
+              </v-flex>
+            </v-layout>
           </v-form>
           <v-divider/>
           <v-card-actions>
@@ -144,7 +163,28 @@ export default {
       },
     email: { required, email },
     firstName: { required },
-    surname: { required }
+    surname: { required },
+    odkUsername: {
+      required,
+      odkUsernameUnique: (value) => {
+        if (value === '') return true
+        let formData = new FormData()
+        formData.append('username', value)
+        return new Promise((resolve, reject) => {
+          axios.post(backendServer + '/usernameExist/', formData, {
+            headers: {
+              'Content-Type': 'multipart/form-data'
+            }
+          }).then((user) => {
+            if(user.data.length > 0) {
+              resolve(false)
+            } else {
+              resolve(true)
+            }
+          })
+        })
+      }
+    }
   },
   data () {
     return {
@@ -157,6 +197,7 @@ export default {
       email: '',
       phone1: '',
       phone2: '',
+      odkUsername: '',
       alertFail: false,
       alertSuccess: false,
       alertMsg: ''
@@ -174,6 +215,7 @@ export default {
       formData.append('phone1', this.phone1)
       formData.append('phone2', this.phone2)
       formData.append('village', this.active[0])
+      formData.append('odkUsername', this.odkUsername)
       for (let field in this.customFields) {
         formData.append(field, this.customFields[field])
       }
@@ -200,6 +242,21 @@ export default {
         console.log(err.response.data.error)
       })
     },
+    usernameExist (callback) {
+      let formData = new FormData()
+      formData.append('username', this.odkUsername)
+      axios.post(backendServer + '/usernameExist/', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      }).then((user) => {
+        if(user.data.length > 0) {
+          return callback(true)
+        } else {
+          return callback(false)
+        }
+      })
+    },
     getLocation (item) {
       let query
       if(!item.typeTag) {
@@ -217,7 +274,7 @@ export default {
     items () {
       return [
         {
-          name: 'Parent',
+          name: 'Parent*',
           children: this.tree
         }
       ]
@@ -254,6 +311,14 @@ export default {
       const errors = []
       if (!this.$v.firstName.$dirty) return errors
       !this.$v.firstName.required && errors.push('Firstname is required')
+      return errors
+    },
+    odkUsernameErrors () {
+      const errors = []
+      if (!this.$v.odkUsername.$dirty) return errors
+      if(!this.$v.odkUsername.required) {
+        errors.push('ODK Username is required')
+      }
       return errors
     }
   }

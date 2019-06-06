@@ -3,17 +3,18 @@ const express = require('express')
 const winston = require('winston')
 const async = require('async')
 const Excel = require('exceljs')
-const mongoose = require('mongoose');
-const bcrypt = require('bcrypt');
-const jwt = require('jsonwebtoken');
+const mongoose = require('mongoose')
+const bcrypt = require('bcrypt')
+const jwt = require('jsonwebtoken')
 const cors = require('cors');
 const bodyParser = require('body-parser');
-const formidable = require('formidable');
+var guiRouter = require('./routes/gui')
 const aggregator = require('./aggregator')
+const mixin = require('./mixin')
 const rapidpro = require('./rapidpro')
-const config = require('./config');
-const models = require('./models');
-const mongo = require('./mongo')();
+const config = require('./config')
+const models = require('./models')
+const mongo = require('./mongo')()
 const port = config.getConf('server:port')
 const mongoUser = config.getConf("DB_USER")
 const mongoPasswd = config.getConf("DB_PASSWORD")
@@ -26,6 +27,7 @@ let jwtValidator = function (req, res, next) {
   if (req.method == "OPTIONS" ||
     req.path == "/authenticate/" ||
     req.path == "/syncContacts" ||
+    req.path == "/newSubmission" ||
     req.path == "/" ||
     req.path.startsWith("/static/js") ||
     req.path.startsWith("/static/css") ||
@@ -76,490 +78,7 @@ app.use(bodyParser.urlencoded({
   extended: true,
 }));
 app.use(bodyParser.json());
-
-app.post('/authenticate', (req, res) => {
-  const form = new formidable.IncomingForm();
-  form.parse(req, (err, fields, files) => {
-    winston.info('Authenticating user ' + fields.username)
-
-    if (mongoUser && mongoPasswd) {
-      var uri = `mongodb://${mongoUser}:${mongoPasswd}@${mongoHost}:${mongoPort}/${database}`;
-    } else {
-      var uri = `mongodb://${mongoHost}:${mongoPort}/${database}`;
-    }
-    mongoose.connect(uri);
-    let db = mongoose.connection
-    db.on("error", console.error.bind(console, "connection error:"))
-    db.once("open", () => {
-      models.UsersModel.find({
-        userName: fields.username,
-        $or: [{
-          status: 'Active'
-        }, {
-          status: ''
-        }, {
-          status: undefined
-        }]
-      }).lean().exec((err, data) => {
-        if (data.length === 1) {
-          let userID = data[0]._id.toString()
-          let passwordMatch = bcrypt.compareSync(fields.password, data[0].password);
-          if (passwordMatch) {
-            let tokenDuration = config.getConf('auth:tokenDuration')
-            let secret = config.getConf('auth:secret')
-            let token = jwt.sign({
-              id: data[0]._id.toString()
-            }, secret, {
-              expiresIn: tokenDuration
-            })
-            // get role name
-            models.RolesModel.find({
-              _id: data[0].role
-            }).lean().exec((err, roles) => {
-              let role = null
-              if (roles.length === 1) {
-                role = roles[0].name
-              }
-              winston.info('Successfully Authenticated user ' + fields.username)
-              res.status(200).json({
-                token,
-                role,
-                userID
-              })
-            })
-          } else {
-            winston.info('Failed Authenticating user ' + fields.username)
-            res.status(200).json({
-              token: null,
-              role: null,
-              userID: null
-            })
-          }
-        } else {
-          winston.info('Failed Authenticating user ' + fields.username)
-          res.status(200).json({
-            token: null,
-            role: null,
-            userID: null
-          })
-        }
-      })
-    })
-  })
-})
-
-app.post('/addUser', (req, res) => {
-  winston.info("Received a signup request")
-  const form = new formidable.IncomingForm();
-  form.parse(req, (err, fields, files) => {
-    const database = config.getConf("DB_NAME")
-
-    if (mongoUser && mongoPasswd) {
-      var uri = `mongodb://${mongoUser}:${mongoPasswd}@${mongoHost}:${mongoPort}/${database}`;
-    } else {
-      var uri = `mongodb://${mongoHost}:${mongoPort}/${database}`;
-    }
-    mongoose.connect(uri, {}, () => {
-      models.RolesModel.find({
-        name: "Data Manager"
-      }, (err, data) => {
-        if (data) {
-          let User = new models.UsersModel({
-            firstName: fields.firstName,
-            otherName: fields.otherName,
-            surname: fields.surname,
-            userName: fields.userName,
-            status: "Active",
-            role: fields.role,
-            password: bcrypt.hashSync(fields.password, 8)
-          })
-          User.save((err, data) => {
-            if (err) {
-              winston.error(err)
-              res.status(500).json({
-                error: "Internal error occured"
-              })
-            } else {
-              winston.info("User created successfully")
-              res.status(200).json({id: data._id})
-            }
-          })
-        } else {
-          if (err) {
-            winston.error(err)
-          }
-          res.status(500).json({
-            error: "Internal error occured"
-          })
-        }
-      })
-    })
-  })
-})
-
-app.post('/changePassword', (req, res) => {
-  const form = new formidable.IncomingForm();
-  form.parse(req, (err, fields, files) => {
-    winston.info("Received a request to change password for userID " + fields.id)
-    mongo.resetPassword(fields.id, bcrypt.hashSync(fields.password, 8), (error, resp) => {
-      if (error) {
-        winston.error(error)
-        return res.status(400).send()
-      } else {
-        res.status(200).send()
-      }
-    })
-  })
-})
-
-app.get('/getRoles/:id?', (req, res) => {
-  winston.info("Received a request to get roles")
-  const database = config.getConf("DB_NAME")
-
-  if (mongoUser && mongoPasswd) {
-    var uri = `mongodb://${mongoUser}:${mongoPasswd}@${mongoHost}:${mongoPort}/${database}`;
-  } else {
-    var uri = `mongodb://${mongoHost}:${mongoPort}/${database}`;
-  }
-  mongoose.connect(uri);
-  let db = mongoose.connection
-  db.on("error", console.error.bind(console, "connection error:"))
-  db.once("open", () => {
-    let idFilter
-    if (req.params.id) {
-      idFilter = {
-        _id: req.params.id
-      }
-    } else {
-      idFilter = {}
-    }
-    models.RolesModel.find(idFilter).lean().exec((err, roles) => {
-      winston.info(`sending back a list of ${roles.length} roles`)
-      res.status(200).json(roles)
-    })
-  })
-})
-
-app.get('/getUsers', (req, res) => {
-  winston.info("received a request to get users lists")
-  const database = config.getConf("DB_NAME")
-  if (mongoUser && mongoPasswd) {
-    var uri = `mongodb://${mongoUser}:${mongoPasswd}@${mongoHost}:${mongoPort}/${database}`;
-  } else {
-    var uri = `mongodb://${mongoHost}:${mongoPort}/${database}`;
-  }
-  mongoose.connect(uri);
-  let db = mongoose.connection
-  db.on("error", console.error.bind(console, "connection error:"))
-  db.once("open", () => {
-    models.UsersModel.find({}).populate("role").lean().exec((err, users) => {
-      winston.info(`sending back a list of ${users.length} users`)
-      res.status(200).json(users)
-    })
-  })
-})
-
-app.post('/addRegion', (req, res) => {
-  const form = new formidable.IncomingForm();
-  form.parse(req, (err, fields, files) => {
-    winston.info("Received a request to add a region")
-    if (mongoUser && mongoPasswd) {
-      var uri = `mongodb://${mongoUser}:${mongoPasswd}@${mongoHost}:${mongoPort}/${database}`;
-    } else {
-      var uri = `mongodb://${mongoHost}:${mongoPort}/${database}`;
-    }
-    mongoose.connect(uri, {}, () => {
-      let Region = new models.RegionsModel({
-        name: fields.name,
-      })
-      Region.save((err, data) => {
-        if (err) {
-          winston.error(err)
-          res.status(500).json({
-            error: "Internal error occured"
-          })
-        } else {
-          winston.info("Region saved successfully")
-          res.status(200).json({id: data._id})
-        }
-      })
-    })
-  })
-})
-
-app.post('/addDistrict', (req, res) => {
-  const form = new formidable.IncomingForm();
-  form.parse(req, (err, fields, files) => {
-    winston.info("Received a request to add a district")
-    if (mongoUser && mongoPasswd) {
-      var uri = `mongodb://${mongoUser}:${mongoPasswd}@${mongoHost}:${mongoPort}/${database}`;
-    } else {
-      var uri = `mongodb://${mongoHost}:${mongoPort}/${database}`;
-    }
-    mongoose.connect(uri, {}, () => {
-      let District = new models.DistrictsModel({
-        name: fields.name,
-        parent: fields.parent
-      })
-      District.save((err, data) => {
-        if (err) {
-          winston.error(err)
-          res.status(500).json({
-            error: "Internal error occured"
-          })
-        } else {
-          winston.info("District saved successfully")
-          res.status(200).json({id: data._id})
-        }
-      })
-    })
-  })
-})
-
-app.post('/addFacility', (req, res) => {
-  const form = new formidable.IncomingForm();
-  form.parse(req, (err, fields, files) => {
-    winston.info("Received a request to add a facility")
-    if (mongoUser && mongoPasswd) {
-      var uri = `mongodb://${mongoUser}:${mongoPasswd}@${mongoHost}:${mongoPort}/${database}`;
-    } else {
-      var uri = `mongodb://${mongoHost}:${mongoPort}/${database}`;
-    }
-    mongoose.connect(uri, {}, () => {
-      let Facility = new models.FacilitiesModel({
-        name: fields.name,
-        parent: fields.parent
-      })
-      Facility.save((err, data) => {
-        if (err) {
-          winston.error(err)
-          res.status(500).json({
-            error: "Internal error occured"
-          })
-        } else {
-          winston.info("Facility saved successfully")
-          res.status(200).json({id: data._id})
-        }
-      })
-    })
-  })
-})
-
-app.post('/addVillage', (req, res) => {
-  const form = new formidable.IncomingForm();
-  form.parse(req, (err, fields, files) => {
-    winston.info("Received a request to add a village")
-    if (mongoUser && mongoPasswd) {
-      var uri = `mongodb://${mongoUser}:${mongoPasswd}@${mongoHost}:${mongoPort}/${database}`;
-    } else {
-      var uri = `mongodb://${mongoHost}:${mongoPort}/${database}`;
-    }
-    mongoose.connect(uri, {}, () => {
-      let Village = new models.VillagesModel({
-        name: fields.name,
-        parent: fields.parent
-      })
-      Village.save((err, data) => {
-        if (err) {
-          winston.error(err)
-          res.status(500).json({
-            error: "Internal error occured"
-          })
-        } else {
-          winston.info("Village saved successfully")
-          res.status(200).json({id: data._id})
-        }
-      })
-    })
-  })
-})
-
-app.post('/addCHA', (req, res) => {
-  const form = new formidable.IncomingForm();
-  form.parse(req, (err, fields, files) => {
-    winston.info("Received a request to add a CHA")
-    if (mongoUser && mongoPasswd) {
-      var uri = `mongodb://${mongoUser}:${mongoPasswd}@${mongoHost}:${mongoPort}/${database}`;
-    } else {
-      var uri = `mongodb://${mongoHost}:${mongoPort}/${database}`;
-    }
-    mongoose.connect(uri, {}, () => {
-      let CHA = new models.CHAModel({
-        firstName: fields.firstName,
-        otherName: fields.otherName,
-        surname: fields.surname,
-        email: fields.email,
-        phone1: fields.phone1,
-        phone2: fields.phone2,
-        village: fields.village
-      })
-      CHA.save((err, data) => {
-        if (err) {
-          winston.error(err)
-          res.status(500).json({
-            error: "Internal error occured"
-          })
-        } else {
-          winston.info("CHA saved successfully")
-          res.status(200).json({id: data._id})
-        }
-      })
-    })
-  })
-})
-
-app.post('/addHFS', (req, res) => {
-  const form = new formidable.IncomingForm();
-  form.parse(req, (err, fields, files) => {
-    winston.info("Received a request to add a CHA")
-    if (mongoUser && mongoPasswd) {
-      var uri = `mongodb://${mongoUser}:${mongoPasswd}@${mongoHost}:${mongoPort}/${database}`;
-    } else {
-      var uri = `mongodb://${mongoHost}:${mongoPort}/${database}`;
-    }
-    mongoose.connect(uri, {}, () => {
-      let HFS = new models.HFSModel({
-        firstName: fields.firstName,
-        otherName: fields.otherName,
-        surname: fields.surname,
-        email: fields.email,
-        phone1: fields.phone1,
-        phone2: fields.phone2,
-        facility: fields.facility
-      })
-      HFS.save((err, data) => {
-        if (err) {
-          winston.error(err)
-          res.status(500).json({
-            error: "Internal error occured"
-          })
-        } else {
-          winston.info("HFS saved successfully")
-          res.status(200).json({id: data._id})
-        }
-      })
-    })
-  })
-})
-
-app.get('/location/:type', (req, res) => {
-  let model = req.params.type + 'Model'
-  let id = req.query.id
-  let query
-  if(id) {
-    query = {id: id}
-  } else {
-    query = {}
-  }
-  if (mongoUser && mongoPasswd) {
-    var uri = `mongodb://${mongoUser}:${mongoPasswd}@${mongoHost}:${mongoPort}/${database}`;
-  } else {
-    var uri = `mongodb://${mongoHost}:${mongoPort}/${database}`;
-  }
-  mongoose.connect(uri, {}, () => {
-    models[model].find(query, (err, data) => {
-      res.status(200).json(data)
-    })
-  })
-})
-
-app.get('/locationTree', (req, res) => {
-  let id = req.query.id
-  let type = req.query.type
-  let lastLocationType = req.query.lastLocationType
-  let checkChild = JSON.parse(req.query.checkChild)
-  let model,childModel,typeTag
-  if(!type) {
-    model = "RegionsModel"
-    childModel = "DistrictsModel"
-    typeTag = "region"
-  } else if(type === 'region') {
-    model = 'DistrictsModel'
-    childModel = "FacilitiesModel"
-    typeTag = "district"
-  } else if(type === 'district') {
-    model = 'FacilitiesModel'
-    childModel = "VillagesModel"
-    typeTag = "facility"
-  } else {
-    model = 'VillagesModel'
-    childModel = null
-    typeTag = "village"
-  }
-  
-  let query
-  if(id) {
-    query = {parent: id}
-  } else {
-    query = {}
-  }
-  if (mongoUser && mongoPasswd) {
-    var uri = `mongodb://${mongoUser}:${mongoPasswd}@${mongoHost}:${mongoPort}/${database}`;
-  } else {
-    var uri = `mongodb://${mongoHost}:${mongoPort}/${database}`;
-  }
-  mongoose.connect(uri, {}, () => {
-    models[model].find(query, (err, data1) => {
-      data1 = JSON.parse(JSON.stringify(data1))
-      async.eachOf(data1, (dt, index, nxtDt) => {
-        let id = data1[index]._id
-        delete data1[index]._id
-        data1[index].id = id
-        data1[index].typeTag = typeTag
-        if(childModel && checkChild) {
-          models[childModel].find({'parent': dt.id}, (err, data2) => {
-            if(data2.length > 0 && lastLocationType != typeTag) {
-              data1[index].children = []
-            }
-            return nxtDt()
-          })
-        } else if(childModel) {
-          if(lastLocationType != typeTag) {
-            data1[index].children = []
-          }
-          return nxtDt()
-        } else {
-          return nxtDt()
-        }
-      }, () => {
-        res.status(200).json(data1)
-      })
-    })
-  })
-})
-
-app.get('/getLocationTree/:type', (req, res) => {
-  if (mongoUser && mongoPasswd) {
-    var uri = `mongodb://${mongoUser}:${mongoPasswd}@${mongoHost}:${mongoPort}/${database}`;
-  } else {
-    var uri = `mongodb://${mongoHost}:${mongoPort}/${database}`;
-  }
-  regions = []
-  mongoose.connect(uri, {}, () => {
-    models.RegionsModel.find({}, (err, data) => {
-      async.eachSeries(data, (region, nxtReg) => {
-        regions.push({
-          name: region.name,
-          id: region.id,
-          children: []
-        })
-        let children = []
-        models.DistrictsModel.find({region: region._id}, (err, data) => {
-          async.eachSeries(data, (district, nxtDistr) => {
-            children.push({
-              name: district.name,
-              id: district._id,
-              children: []
-            })
-            return nxtDistr()
-          }, () => {
-            regions[regions.length-1].children = children
-          })
-        })
-      })
-    })
-  })
-})
+app.use('/', guiRouter)
 
 app.all('/populateData', (req, res) => {
   let householdFormID = config.getConf("aggregator:householdForm:id")
@@ -703,6 +222,284 @@ app.all('/populateData', (req, res) => {
       console.log(err)
     })
   }
+})
+
+app.post('/newSubmission', (req, res) => {
+  //acknowlodge recipient
+  res.status(200).send()
+  winston.info('New submission received')
+  let householdFormID = config.getConf("aggregator:householdForm:id")
+  let householdFormName = config.getConf("aggregator:householdForm:name")
+  let submission = req.body
+  // populate any new house/ pregnant woman as a choice
+  aggregator.downloadXLSForm(householdFormID, householdFormName, (err) => {
+    getWorkbook(__dirname + '/' + householdFormName + '.xlsx', (chadWorkbook) => {
+      let chadChoicesWorksheet = chadWorkbook.getWorksheet('choices')
+      let house_name = mixin.getDataFromJSON(submission, 'house_name')
+      let pregnant_woman_name = mixin.getDataFromJSON(submission, 'pregnant_woman_name')
+      async.series({
+        new_house: (callback) => {
+          if (house_name == 'add_new') {
+            let new_house_name = mixin.getDataFromJSON(submission, 'house_name_new')
+            let new_house_number = mixin.getDataFromJSON(submission, 'house_number_new')
+            let village = mixin.getDataFromJSON(submission, 'village')
+            aggregator.populateHouses(chadChoicesWorksheet, new_house_name, new_house_number, village, (err) => {
+              winston.info('writting new house into local household_visit XLSForm')
+              chadWorkbook.xlsx.writeFile(__dirname + '/' + householdFormName + '.xlsx').then(() => {
+                return callback(false, false)
+              })
+            })
+          } else {
+            return callback(false, false)
+          }
+        },
+        new_preg_wom: (callback) => {
+          if (pregnant_woman_name == 'add_new') {
+            let new_preg_woman_name = mixin.getDataFromJSON(submission, 'pregnant_woman_name_new')
+            let new_pregnant_woman_age = mixin.getDataFromJSON(submission, 'pregnant_woman_age_new')
+            let house_number
+            house_number = mixin.getDataFromJSON(submission, 'house_number_new')
+            if(!house_number) {
+              house_number = mixin.getDataFromJSON(submission, 'house_number')
+            }
+            aggregator.populatePregnantWomen(chadChoicesWorksheet, new_preg_woman_name, new_pregnant_woman_age, house_number, (err) => {
+              winston.info('writting new pregnant woman into local household_visit XLSForm')
+              chadWorkbook.xlsx.writeFile(__dirname + '/' + householdFormName + '.xlsx').then(() => {
+                return callback(false, false)
+              })
+            })
+          } else {
+            return callback(false, false)
+          }
+        }
+      }, () => {
+        winston.info('Updating the online CHAD XLSForm with the local household XLSForm')
+        // aggregator.publishForm(householdFormID, householdFormName, () => {
+        //   winston.info('Online household XLSForm Updated')
+        // })
+      })
+      // check if needs referal
+      // check pregnant woman referral
+      if(submission.hasOwnProperty('rp_preg_woman')) {
+        async.each(submission.rp_preg_woman, (preg_wom, nxtPregWom) => {
+          let danger_signs = mixin.getDataFromJSON(preg_wom, 'danger_signs')
+          if(danger_signs) {
+            let sms = "Patient:Pregnant Woman \\n Issues:"
+            let issues = ''
+            danger_signs = danger_signs.split(" ")
+            async.eachSeries(danger_signs, (danger_sign, nxtDangerSign) => {
+              const promises = []
+              chadChoicesWorksheet.eachRow((chadRows, chadRowNum) => {
+                promises.push(new Promise((resolve, reject) => {
+                  if(chadRows.values.includes('danger_signs') && chadRows.values.includes(danger_sign)) {
+                    if(issues) {
+                      issues += ", "
+                    }
+                    issues += chadRows.values[chadRows.values.length-1]
+                    resolve()
+                  } else {
+                    resolve()
+                  }
+                }))
+              })
+              Promise.all(promises).then(() => {
+                return nxtDangerSign()
+              })
+            }, () => {
+              sms += issues
+              rapidpro.alertReferal(submission.username, sms)
+              return nxtPregWom()
+            })
+          } else {
+            return nxtPregWom()
+          }
+        })
+      }
+
+      // check postnatal mother referral
+      if(submission.hasOwnProperty('rp_breast_feed_mother')) {
+        async.each(submission.rp_breast_feed_mother, (postnatal_mthr, nxtPostnatalMthr) => {
+          let psigns = mixin.getDataFromJSON(postnatal_mthr, 'puperium_danger_signs')
+          let signs = []
+          if(psigns) {
+            signs = psigns.split(" ")
+          }
+          if(signs.length > 0) {
+            let sms = "Patient:Postnatal mother \\n Issues:"
+            let issues = ''
+            async.eachSeries(signs, (sign, nxtDangerSign) => {
+              const promises = []
+              chadChoicesWorksheet.eachRow((chadRows, chadRowNum) => {
+                promises.push(new Promise((resolve, reject) => {
+                  if(chadRows.values.includes('puperium_danger_signs') && chadRows.values.includes(sign)) {
+                    if(issues) {
+                      issues += ", "
+                    }
+                    issues += chadRows.values[chadRows.values.length-1]
+                    resolve()
+                  } else {
+                    resolve()
+                  }
+                }))
+              })
+              Promise.all(promises).then(() => {
+                return nxtDangerSign()
+              })
+            }, () => {
+              sms += issues
+              rapidpro.alertReferal(submission.username, sms)
+              return nxtPostnatalMthr()
+            })
+          } else {
+            return nxtPostnatalMthr()
+          }
+        })
+      }
+
+      // check neonatal child referral
+      if(submission.hasOwnProperty('rp_breast_feed_mother')) {
+        async.each(submission.rp_breast_feed_mother, (postnatal_mthr, nxtNeonatalChild) => {
+          let neo_babies = mixin.getDataFromJSON(postnatal_mthr, 'rp_neonatal_baby')
+          async.each(neo_babies, (neo_baby, nxtNeoBaby) => {
+            let nsigns = mixin.getDataFromJSON(neo_baby, 'neonatal_danger_sign')
+            let signs = []
+            if(nsigns) {
+              signs = nsigns.split(" ")
+            }
+
+            if(signs.length > 0) {
+              let sms = "Patient:Neonatal baby \\n Issues:"
+              let issues = ''
+              async.eachSeries(signs, (sign, nxtDangerSign) => {
+                const promises = []
+                chadChoicesWorksheet.eachRow((chadRows, chadRowNum) => {
+                  promises.push(new Promise((resolve, reject) => {
+                    if(chadRows.values.includes('neonatal_danger_sign') && chadRows.values.includes(sign)) {
+                      if(issues) {
+                        issues += ", "
+                      }
+                      issues += chadRows.values[chadRows.values.length-1]
+                      resolve()
+                    } else {
+                      resolve()
+                    }
+                  }))
+                })
+                Promise.all(promises).then(() => {
+                  return nxtDangerSign()
+                })
+              }, () => {
+                sms += issues
+                rapidpro.alertReferal(submission.username, sms)
+                return nxtNeoBaby()
+              })
+            } else {
+              return nxtNeoBaby()
+            }
+          }, () => {
+            return nxtNeonatalChild()
+          })
+        })
+      }
+
+      // check children under 5 referral
+      let under_5 = mixin.getDataFromJSON(submission, 'rp_children_under_5')
+      if(under_5 && under_5.length > 0) {
+        async.each(under_5, (susp_pat, nxtSuspPat) => {
+          let danger_signs = mixin.getDataFromJSON(susp_pat, 'danger_signs_child')
+          if(danger_signs) {
+            let sms = "Patient:Children under 5 \\n Issues:"
+            let issues = ''
+            danger_signs = danger_signs.split(" ")
+            async.eachSeries(danger_signs, (danger_sign, nxtDangerSign) => {
+              const promises = []
+              chadChoicesWorksheet.eachRow((chadRows, chadRowNum) => {
+                promises.push(new Promise((resolve, reject) => {
+                  if(chadRows.values.includes('danger_signs_child') && chadRows.values.includes(danger_sign)) {
+                    if(issues) {
+                      issues += ", "
+                    }
+                    issues += chadRows.values[chadRows.values.length-1]
+                    resolve()
+                  } else {
+                    resolve()
+                  }
+                }))
+              })
+              Promise.all(promises).then(() => {
+                return nxtDangerSign()
+              })
+            }, () => {
+              sms += issues
+              rapidpro.alertReferal(submission.username, sms)
+              return nxtSuspPat()
+            })
+          } else {
+            return nxtSuspPat()
+          }
+        })
+      }
+
+      // check  any other sick person referral
+      let sick_person = mixin.getDataFromJSON(submission, 'rp_sick_person')
+      if(sick_person && sick_person.length > 0) {
+        async.each(sick_person, (susp_pat, nxtSuspPat) => {
+          let danger_signs = mixin.getDataFromJSON(susp_pat, 'general_examination')
+          if(danger_signs) {
+            let sms = "Patient:Sick person \\n Issues:"
+            let issues = ''
+            danger_signs = danger_signs.split(" ")
+            async.eachSeries(danger_signs, (danger_sign, nxtDangerSign) => {
+              if(danger_sign === 'others') {
+                if(issues) {
+                  issues += ", "
+                }
+                issues += mixin.getDataFromJSON(susp_pat, 'general_examination_others')
+                return nxtDangerSign()
+              }
+              const promises = []
+              chadChoicesWorksheet.eachRow((chadRows, chadRowNum) => {
+                promises.push(new Promise((resolve, reject) => {
+                  if(chadRows.values.includes('general_examination') && chadRows.values.includes(danger_sign)) {
+                    if(issues) {
+                      issues += ", "
+                    }
+                    issues += chadRows.values[chadRows.values.length-1]
+                    resolve()
+                  } else {
+                    resolve()
+                  }
+                }))
+              })
+              Promise.all(promises).then(() => {
+                return nxtDangerSign()
+              })
+            }, () => {
+              sms += issues
+              rapidpro.alertReferal(submission.username, sms)
+              return nxtSuspPat()
+            })
+          } else {
+            return nxtSuspPat()
+          }
+        })
+      }
+    })
+  })
+
+  function getWorkbook(filename, callback) {
+    let workbook = new Excel.Workbook()
+    workbook.xlsx.readFile(filename).then(() => {
+      return callback(workbook)
+    }).catch((err) => {
+      console.log(err)
+    })
+  }
+})
+
+app.all('/test1', (req, resp) => {
+  winston.error(JSON.stringify(req.body))
+  resp.status(200).send('Received')
 })
 
 app.post('/syncContacts', (req, res) => {

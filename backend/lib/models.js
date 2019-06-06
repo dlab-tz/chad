@@ -125,6 +125,10 @@ let CHA = new mongoose.Schema({
   },
   surname: {
     type: String,
+    required: true
+  },
+  odkUsername: {
+    type: String,
     required: true,
     unique: true
   },

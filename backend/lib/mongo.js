@@ -85,6 +85,48 @@ module.exports = function () {
           return callback(false, data)
         });
       })
+    },
+    getCHAByUsername(username, callback) {
+      let query = {
+        odkUsername: username
+      }
+      const mongoose = require('mongoose')
+      mongoose.connect(uri, {}, () => {
+        models.CHAModel.find(query, (err, data) => {
+          if (err) {
+            return callback(err);
+          }
+          return callback(false, data)
+        });
+      })
+    },
+    getFacilityFromVillage(villageId, callback) {
+      let query = {
+        _id: villageId
+      }
+      const mongoose = require('mongoose')
+      mongoose.connect(uri, {}, () => {
+        models.VillagesModel.find(query, (err, data) => {
+          if (err) {
+            return callback(err);
+          }
+          return callback(false, data)
+        });
+      })
+    },
+    getHFS(facilityId, callback) {
+      let query = {
+        facility: facilityId
+      }
+      const mongoose = require('mongoose')
+      mongoose.connect(uri, {}, () => {
+        models.HFSModel.find(query, (err, data) => {
+          if (err) {
+            return callback(err);
+          }
+          return callback(false, data)
+        });
+      })
     }
   }
 }

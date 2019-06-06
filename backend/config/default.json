@@ -18,15 +18,16 @@
     "level": "info"
   },
   "aggregator": {
-    "host": "https://odk.ona.io",
+    "host": "http://localhost:8000",
     "user": "ashaban",
-    "password": "JVqg7BPjTXpfN7g",
+    "password": "xxxxx",
+    "token": "832d6be216d9f639017c99db59737bda08cb400d",
     "housesForm": {
       "id": "406639",
       "name": "Houses_Registration"
     },
     "householdForm": {
-      "id": "406637",
+      "id": "5",
       "name": "household_visit"
     },
     "chadForm": {

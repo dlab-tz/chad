@@ -4,7 +4,7 @@
       row
       wrap>
       <v-spacer/>
-      <v-flex xs6>
+      <v-flex xs12>
         <v-alert
           style="width: 500px"
           v-model="alertSuccess"
@@ -25,7 +25,7 @@
         </v-alert>
         <v-card
           class="mx-auto"
-          style="max-width: 500px;">
+          style="max-width: 1000px;">
           <v-system-bar
             color="deep-purple darken-4"
             dark/>
@@ -39,72 +39,79 @@
           <v-form
             ref="form"
             class="pa-3 pt-4">
-            <v-text-field
-              required
-              @blur="$v.firstName.$touch()"
-              @change="$v.firstName.$touch()"
-              :error-messages="firstnameErrors"
-              v-model="firstName"
-              box
-              color="deep-purple"
-              label="First Name"/>
-            <v-text-field
-              v-model="otherName"
-              box
-              color="deep-purple"
-              label="Middle Names"/>
-            <v-text-field
-              required
-              @blur="$v.surname.$touch()"
-              @change="$v.surname.$touch()"
-              :error-messages="surnameErrors"
-              v-model="surname"
-              box
-              color="deep-purple"
-              label="Surname"/>
-            <v-text-field
-              required
-              @blur="$v.phone1.$touch()"
-              @change="$v.phone1.$touch()"
-              :error-messages="phone1Errors"
-              v-model="phone1"
-              box
-              color="deep-purple"
-              label="Mobile Phone 1"/>
-            <v-text-field
-              v-model="phone2"
-              box
-              color="deep-purple"
-              label="Mobile Phone 2"/>
-            <v-text-field
-              required
-              @blur="$v.email.$touch()"
-              @change="$v.email.$touch()"
-              :error-messages="emailErrors"
-              v-model="email"
-              box
-              color="deep-purple"
-              label="Email"/>
-            <v-treeview
-              :active.sync="active"
-              :open.sync="open"
-              :items="items"
-              :load-children="getLocation"
-              activatable
-              active-class="primary--text"
-              class="grey lighten-5"
-              open-on-click
-              transition
-            >
-              <template v-slot:prepend="{ item, active }">
-                <v-icon
-                  v-if="!item.children"
-                  :color="active ? 'primary' : ''"
+            <v-layout row wrap>
+              <v-flex xs5>
+                <v-text-field
+                  required
+                  @blur="$v.firstName.$touch()"
+                  @change="$v.firstName.$touch()"
+                  :error-messages="firstnameErrors"
+                  v-model="firstName"
+                  box
+                  color="deep-purple"
+                  label="First Name*"/>
+                <v-text-field
+                  v-model="otherName"
+                  box
+                  color="deep-purple"
+                  label="Middle Names"/>
+                <v-text-field
+                  required
+                  @blur="$v.surname.$touch()"
+                  @change="$v.surname.$touch()"
+                  :error-messages="surnameErrors"
+                  v-model="surname"
+                  box
+                  color="deep-purple"
+                  label="Surname*"/>
+              </v-flex>
+              <v-spacer></v-spacer>
+              <v-flex xs5>
+                <v-text-field
+                  required
+                  @blur="$v.phone1.$touch()"
+                  @change="$v.phone1.$touch()"
+                  :error-messages="phone1Errors"
+                  v-model="phone1"
+                  box
+                  color="deep-purple"
+                  label="Mobile Phone 1*"/>
+                <v-text-field
+                  v-model="phone2"
+                  box
+                  color="deep-purple"
+                  label="Mobile Phone 2"/>
+                <v-text-field
+                  required
+                  @blur="$v.email.$touch()"
+                  @change="$v.email.$touch()"
+                  :error-messages="emailErrors"
+                  v-model="email"
+                  box
+                  color="deep-purple"
+                  label="Email*"/>
+                <v-treeview
+                  :active.sync="active"
+                  :open.sync="open"
+                  :items="items"
+                  :load-children="getLocation"
+                  activatable
+                  active-class="primary--text"
+                  class="grey lighten-5"
+                  open-on-click
+                  transition
                 >
-                  mdi-account
-                </v-icon>
-              </template>
-            </v-treeview>
+                  <template v-slot:prepend="{ item, active }">
+                    <v-icon
+                      v-if="!item.children"
+                      :color="active ? 'primary' : ''"
+                    >
+                      mdi-account
+                    </v-icon>
+                  </template>
+                </v-treeview>
+              </v-flex>
+            </v-layout>
           </v-form>
           <v-divider/>
           <v-card-actions>
@@ -214,7 +221,7 @@ export default {
     items () {
       return [
         {
-          name: 'Parent',
+          name: 'Parent*',
           children: this.tree
         }
       ]
