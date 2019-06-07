@@ -3,8 +3,21 @@ const winston = require('winston')
 const request = require('request')
 const async = require('async')
 const mongo = require('./mongo')()
+const models = require('./models')
 const URI = require('urijs')
-const config = require('./config');
+const config = require('./config')
+
+const mongoUser = config.getConf("DB_USER")
+const mongoPasswd = config.getConf("DB_PASSWORD")
+const mongoHost = config.getConf("DB_HOST")
+const mongoPort = config.getConf("DB_PORT")
+const database = config.getConf("DB_NAME")
+let mongoURI
+if (mongoUser && mongoPasswd) {
+  mongoURI = `mongodb://${mongoUser}:${mongoPasswd}@${mongoHost}:${mongoPort}/${database}`;
+} else {
+  mongoURI = `mongodb://${mongoHost}:${mongoPort}/${database}`;
+}
 
 const isThrottled = (results,callback) => {
   if(!results) {
@@ -127,6 +140,39 @@ const addContact = (contact, callback) => {
       })
     })
   }
+  const clinicReminder = (callback) => {
+    let today = new Date().toISOString().substr(0, 10)
+    let query = {
+      nxtClinicAlert: today,
+      expectedDeliveryDate: {'$gt': today}
+    }
+    const mongoose = require('mongoose')
+    mongoose.connect(mongoURI, {}, () => {
+      models.PregnantWomenModel.find(query, (err, data) => {
+        if (err) {
+          winston.error(err)
+          return callback(true)
+        }
+        try {
+          data = JSON.parse(JSON.stringify(data))
+        } catch (error) {
+          winston.error(error)
+          return callback(true)
+        }
+        if(data.length == 0) {
+          return callback(false)
+        }
+
+        let clinicDate = moment(today).add(2, 'days').format("DD-MM-YYYY")
+        async.each(data, (pregWom, nxtPregWom) => {
+          let sms = `${pregWom.fullName} of house ${pregWom.house} needs to attend clinic on ${clinicDate}, go and remind her`
+          alertCHA(pregWom.village, sms)
+          return callback(false)
+        })
+      })
+    })
+  }
+
   const alertCHA = (villageId, sms) => {
     mongo.getCHAByVillage(villageId, (err, CHAs) => {
       if(err) {
@@ -179,5 +225,6 @@ const addContact = (contact, callback) => {
   module.exports = {
     addContact,
     alertReferal,
-    alertCHA
+    alertCHA,
+    clinicReminder
   }

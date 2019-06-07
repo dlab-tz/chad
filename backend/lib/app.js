@@ -16,6 +16,7 @@ const rapidpro = require('./rapidpro')
 const config = require('./config')
 const models = require('./models')
 const mongo = require('./mongo')()
+require('./clone')
 const port = config.getConf('server:port')
 const mongoUser = config.getConf("DB_USER")
 const mongoPasswd = config.getConf("DB_PASSWORD")
@@ -538,32 +539,12 @@ app.post('/newSubmission', (req, res) => {
 })
 
 app.all('/clinicReminder', (req, res) => {
-  let today = new Date().toISOString().substr(0, 10)
-  let query = {
-    nxtClinicAlert: today,
-    expectedDeliveryDate: {'$gt': today}
-  }
-  const mongoose = require('mongoose')
-  mongoose.connect(mongoURI, {}, () => {
-    models.PregnantWomenModel.find(query, (err, data) => {
-      if (err) {
-        return res.status(500).send()
-      }
-      try {
-        data = JSON.parse(JSON.stringify(data))
-      } catch (error) {
-        winston.error(error)
-      }
-      if(data.length == 0) {
-        return res.status(200).send()
-      }
-
-      let clinicDate = moment(today).add(2, 'days').format("DD-MM-YYYY")
-      async.each(data, (pregWom, nxtPregWom) => {
-        let sms = `${pregWom.fullName} of house ${pregWom.house} needs to attend clinic on ${clinicDate}, go and remind her`
-        rapidpro.alertCHA(pregWom.village, sms)
-      })
-    });
+  rapidpro.clinicReminder((err) => {
+    if(err) {
+      res.status(500).send()
+    } else {
+      res.status(200).send()
+    }
   })
 })
 
