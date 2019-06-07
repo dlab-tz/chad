@@ -110,7 +110,7 @@ const addContact = (contact, callback) => {
           if(HFSs.length == 0) {
             return
           }
-          rp_ids = []
+          let rp_ids = []
           async.each(HFSs, (hfs, nxtHfs) => {
             if(hfs.rapidproId) {
               rp_ids.push(hfs.rapidproId)
@@ -127,8 +127,32 @@ const addContact = (contact, callback) => {
       })
     })
   }
+  const alertCHA = (villageId, sms) => {
+    mongo.getCHAByVillage(villageId, (err, CHAs) => {
+      if(err) {
+        winston.error(err)
+        return
+      }
+      if(CHAs.length == 0) {
+        return
+      }
+      let rp_ids = []
+      async.each(CHAs, (cha, nxtCha) => {
+        if(cha.rapidproId) {
+          rp_ids.push(cha.rapidproId)
+          return nxtCha()
+        } else {
+          return nxtCha()
+        }
+      }, () => {
+        if(rp_ids.length > 0) {
+          broadcast(rp_ids, sms)
+        }
+      })
+    })
+  }
+
   const broadcast = (rapidpro_id, sms) => {
-    winston.error(rapidpro_id)
     if(!Array.isArray(rapidpro_id)) {
       winston.error("cant send broadcast message, rapidpro_id is not an array of ids")
       return
@@ -148,12 +172,12 @@ const addContact = (contact, callback) => {
       json: true
     }
     request.post(options, (err, res, body) => {
-      winston.error(body)
       winston.info("Broadcast msg sent successfully")
     })
   }
 
   module.exports = {
     addContact,
-    alertReferal
+    alertReferal,
+    alertCHA
   }

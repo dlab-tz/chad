@@ -4,6 +4,7 @@ const winston = require('winston')
 const async = require('async')
 const Excel = require('exceljs')
 const mongoose = require('mongoose')
+const moment = require('moment')
 const bcrypt = require('bcrypt')
 const jwt = require('jsonwebtoken')
 const cors = require('cors');
@@ -21,6 +22,14 @@ const mongoPasswd = config.getConf("DB_PASSWORD")
 const mongoHost = config.getConf("DB_HOST")
 const mongoPort = config.getConf("DB_PORT")
 const database = config.getConf("DB_NAME")
+
+let mongoURI
+if (mongoUser && mongoPasswd) {
+  mongoURI = `mongodb://${mongoUser}:${mongoPasswd}@${mongoHost}:${mongoPort}/${database}`;
+} else {
+  mongoURI = `mongodb://${mongoHost}:${mongoPort}/${database}`;
+}
+
 const app = express()
 
 let jwtValidator = function (req, res, next) {
@@ -28,6 +37,7 @@ let jwtValidator = function (req, res, next) {
     req.path == "/authenticate/" ||
     req.path == "/syncContacts" ||
     req.path == "/newSubmission" ||
+    req.path == "/clinicReminder" ||
     req.path == "/" ||
     req.path.startsWith("/static/js") ||
     req.path.startsWith("/static/css") ||
@@ -284,9 +294,9 @@ app.post('/newSubmission', (req, res) => {
       if(submission.hasOwnProperty('rp_preg_woman')) {
         async.each(submission.rp_preg_woman, (preg_wom, nxtPregWom) => {
           // Schedule a reminder for clinic
-          let house_number = mixin.getDataFromJSON(preg_wom, 'house_name')
+          let house_number = mixin.getDataFromJSON(submission, 'house_name')
           if(house_number == 'add_new') {
-            house_number = mixin.getDataFromJSON(preg_wom, 'house_number_new')
+            house_number = mixin.getDataFromJSON(submission, 'house_number_new')
           }
           last_clin_vis = mixin.getDataFromJSON(preg_wom, 'forth_visit_above')
           if(!last_clin_vis) {
@@ -527,9 +537,34 @@ app.post('/newSubmission', (req, res) => {
   }
 })
 
-app.all('/test1', (req, resp) => {
-  winston.error(JSON.stringify(req.body))
-  resp.status(200).send('Received')
+app.all('/clinicReminder', (req, res) => {
+  let today = new Date().toISOString().substr(0, 10)
+  let query = {
+    nxtClinicAlert: today,
+    expectedDeliveryDate: {'$gt': today}
+  }
+  const mongoose = require('mongoose')
+  mongoose.connect(mongoURI, {}, () => {
+    models.PregnantWomenModel.find(query, (err, data) => {
+      if (err) {
+        return res.status(500).send()
+      }
+      try {
+        data = JSON.parse(JSON.stringify(data))
+      } catch (error) {
+        winston.error(error)
+      }
+      if(data.length == 0) {
+        return res.status(200).send()
+      }
+
+      let clinicDate = moment(today).add(2, 'days').format("DD-MM-YYYY")
+      async.each(data, (pregWom, nxtPregWom) => {
+        let sms = `${pregWom.fullName} of house ${pregWom.house} needs to attend clinic on ${clinicDate}, go and remind her`
+        rapidpro.alertCHA(pregWom.village, sms)
+      })
+    });
+  })
 })
 
 app.post('/syncContacts', (req, res) => {
@@ -601,12 +636,7 @@ app.post('/syncContacts', (req, res) => {
 
 app.listen(port, () => {
   winston.info("Server is running and listening on port " + port)
-  if (mongoUser && mongoPasswd) {
-    var uri = `mongodb://${mongoUser}:${mongoPasswd}@${mongoHost}:${mongoPort}/${database}`;
-  } else {
-    var uri = `mongodb://${mongoHost}:${mongoPort}/${database}`;
-  }
-  mongoose.connect(uri);
+  mongoose.connect(mongoURI);
   let db = mongoose.connection
   db.on("error", console.error.bind(console, "connection error:"))
   db.once("open", () => {

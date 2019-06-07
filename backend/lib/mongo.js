@@ -194,6 +194,20 @@ module.exports = function () {
         });
       })
     },
+    getCHAByVillage(villageId, callback) {
+      let query = {
+        village: villageId
+      }
+      const mongoose = require('mongoose')
+      mongoose.connect(uri, {}, () => {
+        models.CHAModel.find(query, (err, data) => {
+          if (err) {
+            return callback(err);
+          }
+          return callback(false, data)
+        });
+      })
+    },
     getFacilityFromVillage(villageId, callback) {
       let query = {
         _id: villageId
