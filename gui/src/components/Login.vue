@@ -138,7 +138,7 @@ export default {
           )
           this.$store.state.auth.role = authResp.data.role
           if (authResp.data.token) {
-            this.$router.push({ name: 'UsersList' })
+            this.$router.push({ name: 'Dashboard' })
             this.$store.state.denyAccess = false
           } else {
             this.authStatus = true

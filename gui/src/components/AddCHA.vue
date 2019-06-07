@@ -149,7 +149,6 @@
 <script>
 import axios from 'axios'
 import { required, email, integer, minLength, maxLength, minValue } from 'vuelidate/lib/validators'
-
 const backendServer = process.env.VUE_APP_BACKEND_SERVER
 
 export default {

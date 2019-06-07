@@ -2,6 +2,7 @@ import Vue from "vue";
 import Router from "vue-router";
 import {store} from './store.js'
 import VueCookies from 'vue-cookies'
+import Dashboard from '@/components/Dashboard.vue'
 import AddCHA from '@/components/AddCHA.vue'
 import AddHFS from '@/components/AddHFS.vue'
 import AddRegion from '@/components/Location/AddRegion.vue'
@@ -18,6 +19,11 @@ Vue.use(Router);
 
 let router = new Router({
   routes: [
+    {
+      path: '/dashboard',
+      name: 'Dashboard',
+      component: Dashboard
+    },
     {
       path: '/addCHA',
       name: 'AddCHA',

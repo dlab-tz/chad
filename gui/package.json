@@ -9,8 +9,10 @@
   },
   "dependencies": {
     "core-js": "^2.6.5",
+    "echarts": "^4.2.1",
     "vue": "^2.6.10",
     "vue-cookies": "^1.5.13",
+    "vue-echarts": "^4.0.3",
     "vue-router": "^3.0.3",
     "vuelidate": "^0.7.4",
     "vuetify": "^1.5.5",

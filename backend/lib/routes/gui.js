@@ -18,7 +18,6 @@ const mongoPort = config.getConf("DB_PORT")
 const database = config.getConf("DB_NAME")
 
 router.post('/authenticate', (req, res) => {
-  winston.error('authenticating')
   const form = new formidable.IncomingForm();
   form.parse(req, (err, fields, files) => {
     winston.info('Authenticating user ' + fields.username)

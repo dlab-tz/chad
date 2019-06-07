@@ -10,6 +10,13 @@
       <v-toolbar-items v-if="$store.state.auth.token">
         <v-btn
           flat
+          to="Dashboard"
+          v-if='!$store.state.denyAccess'
+        >
+          <v-icon>dashboard</v-icon> Home
+        </v-btn>
+        <v-btn
+          flat
           to="AddCHA"
           v-if='!$store.state.denyAccess'
         >
