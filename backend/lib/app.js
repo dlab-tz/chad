@@ -278,10 +278,40 @@ app.post('/newSubmission', (req, res) => {
         //   winston.info('Online household XLSForm Updated')
         // })
       })
+
       // check if needs referal
       // check pregnant woman referral
       if(submission.hasOwnProperty('rp_preg_woman')) {
         async.each(submission.rp_preg_woman, (preg_wom, nxtPregWom) => {
+          // Schedule a reminder for clinic
+          let house_number = mixin.getDataFromJSON(preg_wom, 'house_name')
+          if(house_number == 'add_new') {
+            house_number = mixin.getDataFromJSON(preg_wom, 'house_number_new')
+          }
+          last_clin_vis = mixin.getDataFromJSON(preg_wom, 'forth_visit_above')
+          if(!last_clin_vis) {
+            last_clin_vis = mixin.getDataFromJSON(preg_wom, 'third_visit')
+            if(!last_clin_vis) {
+              last_clin_vis = mixin.getDataFromJSON(preg_wom, 'second_visit')
+              if(!last_clin_vis) {
+                last_clin_vis = mixin.getDataFromJSON(preg_wom, 'first_visit')
+              }
+            }
+          }
+          let last_menstrual = mixin.getDataFromJSON(preg_wom, 'last_menstrual_period')
+          let preg_wom_name = mixin.getDataFromJSON(preg_wom, 'pregnant_woman_name')
+          if(preg_wom_name === 'add_new') {
+            preg_wom_name = mixin.getDataFromJSON(preg_wom, 'pregnant_woman_name_new')
+            let preg_wom_age = mixin.getDataFromJSON(preg_wom, 'pregnant_woman_age_new')
+            mongo.addPregnantWoman(house_number, preg_wom_name, preg_wom_age, last_clin_vis, last_menstrual, submission.username)
+          } else if(preg_wom_name !== 'add_new') {
+            let preg_wom_name_arr = preg_wom_name.split('-')
+            preg_wom_name = preg_wom_name_arr.shift().trim()
+            preg_wom_age = preg_wom_name_arr.shift().trim()
+            mongo.updatePregnantWoman(house_number, preg_wom_name, preg_wom_age, last_clin_vis, last_menstrual, submission.username)
+          }
+          // end of scheduling a reminder for clinic
+
           let danger_signs = mixin.getDataFromJSON(preg_wom, 'danger_signs')
           if(danger_signs) {
             let sms = "Patient:Pregnant Woman \\n Issues:"

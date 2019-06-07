@@ -152,12 +152,38 @@ let CHA = new mongoose.Schema({
   }
 })
 
+let PregnantWomen = new mongoose.Schema({
+  fullName: {
+    type: String,
+    required: true
+  },
+  age: {
+    type: String
+  },
+  house: {
+    type: String,
+    required: true
+  },
+  village: {
+    type: Schema.Types.ObjectId,
+    ref: 'Villages',
+    required: true
+  },
+  nxtClinicAlert: {
+    type: Date
+  },
+  expectedDeliveryDate: {
+    type: Date
+  }
+})
+
 let RegionsModel = mongoose.model('Regions', Regions)
 let DistrictsModel = mongoose.model('Districts', Districts)
 let FacilitiesModel = mongoose.model('Facilities', Facilities)
 let VillagesModel = mongoose.model('Villages', Villages)
 let HFSModel = mongoose.model('HFS', HFS)
 let CHAModel = mongoose.model('CHA', CHA)
+let PregnantWomenModel = mongoose.model('PregnantWomen', PregnantWomen)
 let RolesModel = mongoose.model('Roles', Roles)
 let UsersModel = mongoose.model('Users', Users)
 module.exports = {
@@ -167,6 +193,7 @@ module.exports = {
   VillagesModel,
   HFSModel,
   CHAModel,
+  PregnantWomenModel,
   UsersModel,
   RolesModel
 }

@@ -361,7 +361,6 @@ router.post('/usernameExist', (req, res) => {
     }
     mongoose.connect(uri, {}, () => {
       models.CHAModel.find({odkUsername: fields.username}, (err, data) => {
-        winston.error(data)
         res.status(200).json(data)
       })
     })

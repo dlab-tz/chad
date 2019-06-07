@@ -1,5 +1,7 @@
 require('./init')
-
+const moment = require('moment')
+const mongoose = require('mongoose')
+const winston = require('winston')
 const models = require('./models')
 const config = require('./config')
 
@@ -54,6 +56,98 @@ module.exports = function () {
           }
           return callback(false, data)
         });
+      })
+    },
+    addPregnantWoman (house, fullName, age, last_clin_vis, last_menstrual, cha_username) {
+      if (mongoUser && mongoPasswd) {
+        var uri = `mongodb://${mongoUser}:${mongoPasswd}@${mongoHost}:${mongoPort}/${database}`;
+      } else {
+        var uri = `mongodb://${mongoHost}:${mongoPort}/${database}`;
+      }
+      this.getCHAByUsername(cha_username, (err, cha) => {
+        if(err) {
+          winston.error(err)
+          return
+        }
+        if(cha.length == 0) {
+          return
+        }
+        let villageId = cha[0].village
+        let expected_delivery = ''
+        if(last_menstrual) {
+          expected_delivery = moment(last_menstrual).add(7, "days").add(9, "M").format("YYYY-MM-DD")
+        }
+        let nxt_clinic_alert = ''
+        if(last_clin_vis) {
+          nxt_clinic_alert = moment(last_clin_vis).add(1, "M").subtract("2", "days").format("YYYY-MM-DD")
+        }
+        mongoose.connect(uri, {}, () => {
+          let PregnantWoman = new models.PregnantWomenModel({
+            house: house,
+            village: villageId,
+            fullName: fullName,
+            age: age,
+            nxtClinicAlert: nxt_clinic_alert,
+            expectedDeliveryDate: expected_delivery
+          })
+          PregnantWoman.save((err, data) => {
+            if (err) {
+              winston.error(err)
+              res.status(500).json({
+                error: "Internal error occured"
+              })
+            } else {
+              winston.info("Pregnant Woman saved successfully")
+              return
+            }
+          })
+        })
+      })
+    },
+    updatePregnantWoman (house, fullName, age, last_clin_vis, last_menstrual, cha_username) {
+      if (mongoUser && mongoPasswd) {
+        var uri = `mongodb://${mongoUser}:${mongoPasswd}@${mongoHost}:${mongoPort}/${database}`;
+      } else {
+        var uri = `mongodb://${mongoHost}:${mongoPort}/${database}`;
+      }
+      this.getCHAByUsername(cha_username, (err, cha) => {
+        if(err) {
+          winston.error(err)
+          return
+        }
+        if(cha.length == 0) {
+          return
+        }
+        let villageId = cha[0].village
+        models.PregnantWomenModel.find({'village': villageId, house: house, fullName: fullName, age: age}, (err, data) => {
+          try {
+            data = JSON.parse(JSON.stringify(data))
+          } catch (error) {
+            winston.error(error)
+          }
+          if(data.length > 0) {
+            let exist_last_clin_vis = data[0].last_clin_vis
+            let exist_last_menstrual = data[0].last_menstrual
+            let updateQuery = {}
+            if(!exist_last_clin_vis && last_clin_vis) {
+              let nxt_clinic_alert = moment(last_clin_vis).add(1, "M").subtract("2", "days").format("YYYY-MM-DD")
+              updateQuery.nxtClinicAlert = nxt_clinic_alert
+            }
+            if(!exist_last_menstrual && last_menstrual) {
+              let expected_delivery = moment(last_menstrual).add(7, "days").add(9, "M").format("YYYY-MM-DD")
+              updateQuery.expectedDeliveryDate = expected_delivery
+            }
+            if(Object.keys(updateQuery).length > 0) {
+              mongoose.connect(uri, {}, () => {
+                models.PregnantWomenModel.findByIdAndUpdate(data[0]._id, updateQuery, (err, data) => {
+                  if(err) {
+                    winston.error(err)
+                  }
+                })
+              })
+            }
+          }
+        })
       })
     },
     getCHA(id, callback) {
