@@ -21,13 +21,13 @@
     "host": "http://localhost:8000",
     "user": "ashaban",
     "password": "xxxxx",
-    "token": "832d6be216d9f639017c99db59737bda08cb400d",
+    "token": "152e90e0acb7a574ee64504dff11211f96cc4fe6",
     "housesForm": {
       "id": "406639",
       "name": "Houses_Registration"
     },
     "householdForm": {
-      "id": "5",
+      "id": "11",
       "name": "household_visit"
     },
     "chadForm": {
@@ -36,8 +36,8 @@
     }
   },
   "rapidpro": {
-    "host": "https://textit.in",
-    "token": "b52f9a033bbb721d75c9d9f804eb2a79709c4737"
+    "host": "http://localhost:8001",
+    "token": "5e88bc01de83a19dbb06eeefc241952bee9a31c6"
   },
   "google": {
     "spreadsheetId": "17rlf9se1ab3zVYqShQXqG4z-Aa_YAC-jaHI85vNITYs"

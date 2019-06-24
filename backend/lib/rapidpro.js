@@ -100,20 +100,20 @@ const addContact = (contact, callback) => {
         return
       }
       let villageId = cha[0].village
-      mongo.getFacilityFromVillage(villageId, (err, facility) => {
+      mongo.getFacilityFromVillage(villageId, (err, villageDetails) => {
         if(err) {
           winston.error(err)
           return
         }
         try {
-          facility = JSON.parse(JSON.stringify(facility))
+          villageDetails = JSON.parse(JSON.stringify(villageDetails))
         } catch (error) {
           winston.error(error) 
         }
-        if(facility.length == 0) {
+        if(villageDetails.length == 0) {
           return
         }
-        let facilityId = facility[0]._id
+        let facilityId = villageDetails[0].parent
         mongo.getHFS(facilityId, (err, HFSs) => {
           try {
             HFSs = JSON.parse(JSON.stringify(HFSs))

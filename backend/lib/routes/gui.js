@@ -9,6 +9,7 @@ var express = require('express')
 var router = express.Router()
 const config = require('../config')
 const mongo = require('../mongo')()
+const rapidpro = require('../rapidpro')
 const models = require('../models')
 const aggregator = require('../aggregator')
 const mongoUser = config.getConf("DB_USER")
@@ -341,6 +342,23 @@ router.post('/addCHA', (req, res) => {
             error: "Internal error occured"
           })
         } else {
+          let urns = ["tel:+255" + fields.phone1.substring(1)]
+          let contact = {
+            "name": fields.firstName + " " + fields.otherName + " " + fields.surname,
+            "urns": urns,
+            "fields": {
+              "chadid": data._id,
+              "category": "CHA",
+              "village": fields.village
+            }
+          }
+          rapidpro.addContact(contact, (err, newContact) => {
+            if(!err) {
+              mongo.updateCHARapidproId(newContact.fields.chadid, newContact.uuid, () => {
+                
+              })
+            }
+          })
           aggregator.createAccount(fields, () => {
             winston.info("CHA saved successfully")
             res.status(200).json({id: data._id})
@@ -393,6 +411,23 @@ router.post('/addHFS', (req, res) => {
             error: "Internal error occured"
           })
         } else {
+          let urns = ["tel:+255" + fields.phone1.substring(1)]
+          let contact = {
+            "name": fields.firstName + " " + fields.otherName + " " + fields.surname,
+            "urns": urns,
+            "fields": {
+              "chadid": data._id,
+              "category": "HFS",
+              "facility": fields.facility
+            }
+          }
+          rapidpro.addContact(contact, (err, newContact) => {
+            if(!err) {
+              mongo.updateHFSRapidproId(newContact.fields.chadid, newContact.uuid, () => {
+                
+              })
+            }
+          })
           winston.info("HFS saved successfully")
           res.status(200).json({id: data._id})
         }

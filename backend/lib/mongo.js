@@ -1,7 +1,10 @@
 require('./init')
 const moment = require('moment')
 const mongoose = require('mongoose')
+const Schema = mongoose.Schema;
 const winston = require('winston')
+const async = require('async')
+const aggregator = require('./aggregator')
 const models = require('./models')
 const config = require('./config')
 
@@ -56,6 +59,33 @@ module.exports = function () {
           }
           return callback(false, data)
         });
+      })
+    },
+    saveSubmission (submission) {
+      if (mongoUser && mongoPasswd) {
+        var uri = `mongodb://${mongoUser}:${mongoPasswd}@${mongoHost}:${mongoPort}/${database}`;
+      } else {
+        var uri = `mongodb://${mongoHost}:${mongoPort}/${database}`;
+      }
+      let householdFormID = config.getConf("aggregator:householdForm:id")
+      let schemaFields = {}
+      aggregator.downloadJSONForm(householdFormID, (err, householdForm) => {
+        householdForm = JSON.parse(householdForm)
+        async.each(submission.children, (field, nxtField) => {
+          getFormField(field, schemaFields, () => {
+            return nxtField()
+          })
+        }, () => {
+          winston.error(JSON.stringify(schemaFields))
+          let submissionSchema = new mongoose.Schema(schemaFields)
+          let SubmissionModel = mongoose.model('Submissions', submissionSchema)
+          let newSubmission = new SubmissionModel()
+          newSubmission.start = '2019-06-10'
+          newSubmission.username = 'ashaban'
+          mongoose.connect(uri, {}, () => {
+            newSubmission.save()
+          })
+        })
       })
     },
     addPregnantWoman (house, fullName, age, last_clin_vis, last_menstrual, cha_username) {
@@ -165,10 +195,10 @@ module.exports = function () {
         });
       })
     },
-    getHFS(id, callback) {
+    getHFS(facilityId, callback) {
       let query = {}
-      if(id) {
-        query = {id}
+      if(facilityId) {
+        query = {facility: facilityId}
       }
       const mongoose = require('mongoose')
       mongoose.connect(uri, {}, () => {
@@ -221,20 +251,55 @@ module.exports = function () {
           return callback(false, data)
         });
       })
-    },
-    getHFS(facilityId, callback) {
-      let query = {
-        facility: facilityId
-      }
-      const mongoose = require('mongoose')
-      mongoose.connect(uri, {}, () => {
-        models.HFSModel.find(query, (err, data) => {
-          if (err) {
-            return callback(err);
-          }
-          return callback(false, data)
-        });
-      })
     }
+  }
+}
+
+function getFormField(field, extractedFields, callback) {
+  if(field.type == 'note') {
+    return callback()
+  }
+  if(field.type == 'group' || field.type == 'repeat') {
+    let obj
+    if(field.type == 'group') {
+      obj = extractedFields
+    } else {
+      if(Array.isArray(extractedFields)) {
+        extractedFields[0][field.name] = []
+        obj = extractedFields[0][field.name]
+      } else {
+        extractedFields[field.name] = []
+        obj = extractedFields[field.name]
+      }
+    }
+    async.each(field.children, (child, nxtChild) => {
+      getFormField(child, obj, () => {
+        return nxtChild()
+      })
+    }, () => {
+      return callback()
+    })
+  } else {
+    let type
+    if(field.type == 'integer') {
+      type = 'Number'
+    } else if(field.type == 'date' || field.type == 'start' || field.type == 'end' || field.type == 'today') {
+      type = 'Date'
+    } else {
+      type = 'String'
+    }
+    if(Array.isArray(extractedFields)) {
+      if(extractedFields.length == 0) {
+        extractedFields[0] = {}
+      }
+      extractedFields[0][field.name] = {
+        type: type
+      }
+    } else {
+      extractedFields[field.name] = {
+        type: type
+      }
+    }
+    return callback()
   }
 }

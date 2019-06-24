@@ -61,6 +61,18 @@
         <v-chart :options="chartOption"/>
       </v-flex>
     </v-layout>
+    <v-data-table
+      :headers="reportHeader"
+      :items="reportRows"
+      hide-actions
+      pagination.sync="pagination"
+      item-key="id"
+    >
+      <template v-slot:items="props">
+        <td>{{ props.item.name }}</td>
+        <td class="text-xs-center">{{ props.item.value }}</td>
+      </template>
+    </v-data-table>
   </v-container>
 </template>
 <script>
@@ -72,16 +84,21 @@ import 'echarts/lib/component/legend'
 import { setTimeout } from 'timers';
 const aggreatorServer = process.env.VUE_APP_AGGREGATOR_SERVER
 const aggreatorToken = process.env.VUE_APP_AGGREGATOR_TOKEN
-const householdFormId = process.env.VUE_APP_HOUSEHOLD_FORMID
+const householdFormId = 11
 export default {
   components: {
     'v-chart': ECharts
   },
   data() {
     return {
+      reportRows: [],
+      reportHeader: [
+        { text: "Village household mapping indicators", value: "Number" },
+        { text: "Value", value: "value" },
+        ],
       startDateMenu: false,
       endDateMenu: false,
-      startDate: new Date().toISOString().substr(0, 10),
+      startDate: new Date('2019-05-01').toISOString().substr(0, 10),
       endDate: new Date().toISOString().substr(0, 10),
       chartOptions: []
     }
@@ -129,50 +146,56 @@ export default {
     generate() {
       this.chartOptions = []
       let indicators = {
+        total_households: {
+          value: 0, key: 'total_households', name: 'Total Number of Households'
+        },
+        total_residents: {
+          value: 0, key: 'total_residents', name: 'Resident Population'
+        },
         pregnant_woman: {
-          value: 0, key: 'pregnant_woman_all'
+          value: 0, key: 'pregnant_woman_all', name: 'Number of pregnant women'
         },
         breast_feeding: {
-          value: 0, key: 'breast_feeding_all'
+          value: 0, key: 'breast_feeding_all', name: 'Number of breastfeeding women'
         },
         neonates: {
-          value: 0, key: 'neonates_all'
+          value: 0, key: 'neonates_all', name: 'Neonates (under 28 days)'
         },
         infants: {
-          value: 0, key: 'infants_all'
+          value: 0, key: 'infants_all', name: 'Infants (1 month to under 1 year of age)'
         },
         children_under5: {
-          value: 0, key: 'children_all'
+          value: 0, key: 'children_all', name: 'Children (1 year to under 5 years)'
         },
         adolescents_girls: {
-          value: 0, key: 'adolescents_girl_10_19_all'
+          value: 0, key: 'adolescents_girl_10_19_all', name: 'Adolescent Girls age 10-19  years'
         },
         adolescents_boys: {
-          value: 0, key: 'adolescents_boy_10_19_all'
+          value: 0, key: 'adolescents_boy_10_19_all', name: 'Adolescent Boys age 10-19  years'
         },
         female_youth_20_24: {
-          value: 0, key: 'female_youth_all'
+          value: 0, key: 'female_youth_all', name: 'Female youth 20 to 24 years '
         },
         male_youth_20_24: {
-          value: 0, key: 'male_youth_all'
+          value: 0, key: 'male_youth_all', name: 'Male youth 20 to 24 years'
         },
         female_15_49: {
-          value: 0, key: 'Female_15_49_all'
+          value: 0, key: 'Female_15_49_all', name: 'Women of Childbearing Age 15-49 years'
         },
         male_15_49: {
-          value: 0, key: 'Male_15_49_all'
+          value: 0, key: 'Male_15_49_all', name: 'Males of 15 to 49 years'
         },
         female_above_50: {
-          value: 0, key: 'female_above_50_all'
+          value: 0, key: 'female_above_50_all', name: 'Female 50 yrs and above'
         },
         male_above_50: {
-          value: 0, key: 'male_above_50_all'
+          value: 0, key: 'male_above_50_all', name: 'Males 50 yrs and above'
         },
         female_total: {
-          value: 0, key: 'female_number_household'
+          value: 0, key: 'female_number_household', name: 'Number of Women'
         },
         male_total: {
-          value: 0, key: 'male_number_household'
+          value: 0, key: 'male_number_household', name: 'Number of Men'
         }
       }
       let startDate = this.startDate.split('-')
@@ -188,7 +211,6 @@ export default {
         `date_created__month__gte=${startMonth}&date_created__month__lte=${endMonth}&`+
         `date_created__day__gte=${startDay}&date_created__day__lte=${endDay}
       `
-      console.log(query);
       axios.get(aggreatorServer + `/api/v1/data/${householdFormId}?${query}`).then((households) => {
         let total_households = 0, houses = []
         for(let household of households.data) {
@@ -213,7 +235,7 @@ export default {
             }
           }
         }
-        
+
         //total household members
         pieOption = this.createChartDefOpt()
         pieOption.title.text = 'Total Male vs Female'
@@ -237,6 +259,8 @@ export default {
         pieOption.title.subtext = 'Total Households vs Resident Population'
         pieOption.series[0].name = 'Total Households vs Resident Population'
         let total_pop = indicators['female_total'].value + indicators['male_total'].value
+        indicators['total_residents'].value = total_pop
+        indicators['total_households'].value = total_households
         pieOption.legend.data.push(`Population (${total_pop})`)
         pieOption.legend.data.push(`Households (${total_households})`)
         pieOption.series[0].data.push({
@@ -356,6 +380,11 @@ export default {
         })
         this.chartOptions.push(pieOption)
       })
+
+      this.reportRows = []
+      for(let indicator in indicators) {
+        this.reportRows.push(indicators[indicator])
+      }
     },
     getDataFromJSON (json, json_key) {
       let keys = Object.keys(json)

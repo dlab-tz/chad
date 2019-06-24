@@ -36,7 +36,7 @@ const app = express()
 let jwtValidator = function (req, res, next) {
   if (req.method == "OPTIONS" ||
     req.path == "/authenticate/" ||
-    req.path == "/syncContacts" ||
+    req.path == "/test" ||
     req.path == "/newSubmission" ||
     req.path == "/clinicReminder" ||
     req.path == "/" ||
@@ -90,6 +90,12 @@ app.use(bodyParser.urlencoded({
 }));
 app.use(bodyParser.json());
 app.use('/', guiRouter)
+
+app.all('/test', (req, res) => {
+  winston.error('here')
+  let submission = req.body
+  mongo.saveSubmission(submission)
+})
 
 app.all('/populateData', (req, res) => {
   let householdFormID = config.getConf("aggregator:householdForm:id")
@@ -285,9 +291,9 @@ app.post('/newSubmission', (req, res) => {
         }
       }, () => {
         winston.info('Updating the online CHAD XLSForm with the local household XLSForm')
-        // aggregator.publishForm(householdFormID, householdFormName, () => {
-        //   winston.info('Online household XLSForm Updated')
-        // })
+        aggregator.publishForm(householdFormID, householdFormName, () => {
+          winston.info('Online household XLSForm Updated')
+        })
       })
 
       // check if needs referal
@@ -548,8 +554,8 @@ app.all('/clinicReminder', (req, res) => {
   })
 })
 
-app.post('/syncContacts', (req, res) => {
-  async.series({
+app.get('/syncContacts', (req, res) => {
+  async.parallel({
     chaSync: (callback) => {
       mongo.getCHA(null, (err, data) => {
         async.each(data, (cha, nxtCha) => {

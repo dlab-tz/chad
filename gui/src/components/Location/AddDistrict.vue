@@ -110,7 +110,7 @@ export default {
       this.$store.state.progressTitle = 'Saving Region'
       let formData = new FormData()
       formData.append('name', this.name)
-      formData.append('region', this.region)
+      formData.append('parent', this.region)
       axios.post(backendServer + '/addDistrict/', formData, {
         headers: {
           'Content-Type': 'multipart/form-data'
