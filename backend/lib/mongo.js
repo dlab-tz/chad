@@ -22,6 +22,97 @@ if (mongoUser && mongoPasswd) {
 
 module.exports = function () {
   return {
+    getRegions(id, callback) {
+      let filter = {}
+      if (id) {
+        filter = {
+          _id: id
+        }
+      }
+      models.RegionsModel.find(filter).lean().exec({}, (err, data) => {
+        if (err) {
+          winston.error(err);
+          return callback('Unexpected error occured,please retry');
+        }
+        callback(err, data);
+      });
+    },
+    getDistricts(id, callback) {
+      let filter = {}
+      if (id) {
+        filter = {
+          _id: id
+        }
+      }
+      models.DistrictsModel.find(filter).populate('parent').lean().exec({}, (err, data) => {
+        if (err) {
+          winston.error(err);
+          return callback('Unexpected error occured,please retry');
+        }
+        callback(err, data);
+      });
+    },
+    getFacilities(id, callback) {
+      let filter = {}
+      if (id) {
+        filter = {
+          _id: id
+        }
+      }
+      models.FacilitiesModel.find(filter).populate('parent').lean().exec({}, (err, data) => {
+        if (err) {
+          winston.error(err);
+          return callback('Unexpected error occured,please retry');
+        }
+        callback(err, data);
+      });
+    },
+    getVillages(id, callback) {
+      let filter = {}
+      if (id) {
+        filter = {
+          _id: id
+        }
+      }
+      models.VillagesModel.find(filter).populate('parent').lean().exec({}, (err, data) => {
+        if (err) {
+          winston.error(err);
+          return callback('Unexpected error occured,please retry');
+        }
+        callback(err, data);
+      });
+    },
+    updateRegion(id, name, callback) {
+      const mongoose = require('mongoose')
+      mongoose.connect(uri, {}, () => {
+        models.RegionsModel.findByIdAndUpdate(id, {
+          name: name
+        }, (err, data) => {
+          if (err) {
+            return callback(err);
+          }
+          return callback(false, data)
+        });
+      })
+    },
+    editLocation(id, name, type, parent, callback) {
+      const mongoose = require('mongoose')
+      let updateQuery = {
+        name: name
+      }
+      if (parent) {
+        updateQuery.parent = parent
+      }
+      let model = type + 'Model'
+      mongoose.connect(uri, {}, () => {
+        models[model].findByIdAndUpdate(id, updateQuery, (err, data) => {
+          if (err) {
+            return callback(err);
+          }
+          return callback(false, data)
+        });
+      })
+    },
     resetPassword(id, password, callback) {
       const mongoose = require('mongoose')
       mongoose.connect(uri, {}, () => {
@@ -35,7 +126,7 @@ module.exports = function () {
         });
       })
     },
-    updateCHARapidproId (chadid, uuid, callback) {
+    updateCHARapidproId(chadid, uuid, callback) {
       const mongoose = require('mongoose')
       mongoose.connect(uri, {}, () => {
         models.CHAModel.findByIdAndUpdate(chadid, {
@@ -48,7 +139,7 @@ module.exports = function () {
         });
       })
     },
-    updateHFSRapidproId (chadid, uuid, callback) {
+    updateHFSRapidproId(chadid, uuid, callback) {
       const mongoose = require('mongoose')
       mongoose.connect(uri, {}, () => {
         models.HFSModel.findByIdAndUpdate(chadid, {
@@ -61,7 +152,7 @@ module.exports = function () {
         });
       })
     },
-    saveSubmission (submission) {
+    saveSubmission(submission) {
       if (mongoUser && mongoPasswd) {
         var uri = `mongodb://${mongoUser}:${mongoPasswd}@${mongoHost}:${mongoPort}/${database}`;
       } else {
@@ -88,27 +179,27 @@ module.exports = function () {
         })
       })
     },
-    addPregnantWoman (house, fullName, age, last_clin_vis, last_menstrual, cha_username) {
+    addPregnantWoman(house, fullName, age, last_clin_vis, last_menstrual, cha_username) {
       if (mongoUser && mongoPasswd) {
         var uri = `mongodb://${mongoUser}:${mongoPasswd}@${mongoHost}:${mongoPort}/${database}`;
       } else {
         var uri = `mongodb://${mongoHost}:${mongoPort}/${database}`;
       }
       this.getCHAByUsername(cha_username, (err, cha) => {
-        if(err) {
+        if (err) {
           winston.error(err)
           return
         }
-        if(cha.length == 0) {
+        if (cha.length == 0) {
           return
         }
         let villageId = cha[0].village
         let expected_delivery = ''
-        if(last_menstrual) {
+        if (last_menstrual) {
           expected_delivery = moment(last_menstrual).add(7, "days").add(9, "M").format("YYYY-MM-DD")
         }
         let nxt_clinic_alert = ''
-        if(last_clin_vis) {
+        if (last_clin_vis) {
           nxt_clinic_alert = moment(last_clin_vis).add(1, "M").subtract("2", "days").format("YYYY-MM-DD")
         }
         mongoose.connect(uri, {}, () => {
@@ -134,43 +225,48 @@ module.exports = function () {
         })
       })
     },
-    updatePregnantWoman (house, fullName, age, last_clin_vis, last_menstrual, cha_username) {
+    updatePregnantWoman(house, fullName, age, last_clin_vis, last_menstrual, cha_username) {
       if (mongoUser && mongoPasswd) {
         var uri = `mongodb://${mongoUser}:${mongoPasswd}@${mongoHost}:${mongoPort}/${database}`;
       } else {
         var uri = `mongodb://${mongoHost}:${mongoPort}/${database}`;
       }
       this.getCHAByUsername(cha_username, (err, cha) => {
-        if(err) {
+        if (err) {
           winston.error(err)
           return
         }
-        if(cha.length == 0) {
+        if (cha.length == 0) {
           return
         }
         let villageId = cha[0].village
-        models.PregnantWomenModel.find({'village': villageId, house: house, fullName: fullName, age: age}, (err, data) => {
+        models.PregnantWomenModel.find({
+          'village': villageId,
+          house: house,
+          fullName: fullName,
+          age: age
+        }, (err, data) => {
           try {
             data = JSON.parse(JSON.stringify(data))
           } catch (error) {
             winston.error(error)
           }
-          if(data.length > 0) {
+          if (data.length > 0) {
             let exist_last_clin_vis = data[0].last_clin_vis
             let exist_last_menstrual = data[0].last_menstrual
             let updateQuery = {}
-            if(!exist_last_clin_vis && last_clin_vis) {
+            if (!exist_last_clin_vis && last_clin_vis) {
               let nxt_clinic_alert = moment(last_clin_vis).add(1, "M").subtract("2", "days").format("YYYY-MM-DD")
               updateQuery.nxtClinicAlert = nxt_clinic_alert
             }
-            if(!exist_last_menstrual && last_menstrual) {
+            if (!exist_last_menstrual && last_menstrual) {
               let expected_delivery = moment(last_menstrual).add(7, "days").add(9, "M").format("YYYY-MM-DD")
               updateQuery.expectedDeliveryDate = expected_delivery
             }
-            if(Object.keys(updateQuery).length > 0) {
+            if (Object.keys(updateQuery).length > 0) {
               mongoose.connect(uri, {}, () => {
                 models.PregnantWomenModel.findByIdAndUpdate(data[0]._id, updateQuery, (err, data) => {
-                  if(err) {
+                  if (err) {
                     winston.error(err)
                   }
                 })
@@ -182,23 +278,28 @@ module.exports = function () {
     },
     getCHA(id, callback) {
       let query = {}
-      if(id) {
-        query = {id}
+      if (id) {
+        query = {
+          id
+        }
       }
       const mongoose = require('mongoose')
       mongoose.connect(uri, {}, () => {
-        models.CHAModel.find(query, (err, data) => {
+        models.CHAModel.find(query).populate('village').lean().exec({}, (err, data) => {
           if (err) {
-            return callback(err);
+            winston.error(err);
+            return callback('Unexpected error occured,please retry');
           }
-          return callback(false, data)
+          callback(err, data);
         });
       })
     },
     getHFS(facilityId, callback) {
       let query = {}
-      if(facilityId) {
-        query = {facility: facilityId}
+      if (facilityId) {
+        query = {
+          facility: facilityId
+        }
       }
       const mongoose = require('mongoose')
       mongoose.connect(uri, {}, () => {
@@ -256,15 +357,15 @@ module.exports = function () {
 }
 
 function getFormField(field, extractedFields, callback) {
-  if(field.type == 'note') {
+  if (field.type == 'note') {
     return callback()
   }
-  if(field.type == 'group' || field.type == 'repeat') {
+  if (field.type == 'group' || field.type == 'repeat') {
     let obj
-    if(field.type == 'group') {
+    if (field.type == 'group') {
       obj = extractedFields
     } else {
-      if(Array.isArray(extractedFields)) {
+      if (Array.isArray(extractedFields)) {
         extractedFields[0][field.name] = []
         obj = extractedFields[0][field.name]
       } else {
@@ -281,15 +382,15 @@ function getFormField(field, extractedFields, callback) {
     })
   } else {
     let type
-    if(field.type == 'integer') {
+    if (field.type == 'integer') {
       type = 'Number'
-    } else if(field.type == 'date' || field.type == 'start' || field.type == 'end' || field.type == 'today') {
+    } else if (field.type == 'date' || field.type == 'start' || field.type == 'end' || field.type == 'today') {
       type = 'Date'
     } else {
       type = 'String'
     }
-    if(Array.isArray(extractedFields)) {
-      if(extractedFields.length == 0) {
+    if (Array.isArray(extractedFields)) {
+      if (extractedFields.length == 0) {
         extractedFields[0] = {}
       }
       extractedFields[0][field.name] = {

@@ -2,8 +2,9 @@
   <v-container>
     <v-layout
       row
-      wrap>
-      <v-spacer/>
+      wrap
+    >
+      <v-spacer />
       <v-flex xs6>
         <v-alert
           style="width: 500px"
@@ -25,20 +26,24 @@
         </v-alert>
         <v-card
           class="mx-auto"
-          style="max-width: 500px;">
+          style="max-width: 500px;"
+        >
           <v-system-bar
             color="deep-purple darken-4"
-            dark/>
+            dark
+          />
           <v-toolbar
             color="deep-purple accent-4"
             cards
             dark
-            flat>
+            flat
+          >
             <v-card-title class="title font-weight-regular">Add New District</v-card-title>
           </v-toolbar>
           <v-form
             ref="form"
-            class="pa-3 pt-4">
+            class="pa-3 pt-4"
+          >
             <v-text-field
               required
               @blur="$v.name.$touch()"
@@ -47,14 +52,16 @@
               v-model="name"
               box
               color="deep-purple"
-              label="District Name"/>
+              label="District Name"
+            />
             <v-select
               required
               :items="regions"
               v-model="region"
               item-text="name"
               item-value="_id"
-              single-line clearable
+              single-line
+              clearable
               @blur="$v.region.$touch()"
               @change="$v.region.$touch()"
               :error-messages="regionErrors"
@@ -62,24 +69,28 @@
               label="Region"
             ></v-select>
           </v-form>
-          <v-divider/>
+          <v-divider />
           <v-card-actions>
             <v-btn
               flat
-              @click="$refs.form.reset()">
+              @click="$refs.form.reset()"
+            >
               <v-icon>clear</v-icon>Clear
             </v-btn>
-            <v-spacer/>
+            <v-spacer />
             <v-btn
               @click="addDistrict()"
               :disabled="$v.$invalid"
               class="white--text"
               color="deep-purple accent-4"
-              depressed><v-icon left>how_to_reg</v-icon>Add</v-btn>
+              depressed
+            >
+              <v-icon left>how_to_reg</v-icon>Add
+            </v-btn>
           </v-card-actions>
         </v-card>
       </v-flex>
-      <v-spacer/>
+      <v-spacer />
     </v-layout>
   </v-container>
 </template>
@@ -131,8 +142,8 @@ export default {
         console.log(err.response.data.error)
       })
     },
-    getDistrict () {
-      axios.get(backendServer + '/location/Regions').then ((data) => {
+    getRegions () {
+      axios.get(backendServer + '/location/Regions').then((data) => {
         this.regions = data.data
       })
     }
@@ -152,7 +163,7 @@ export default {
     }
   },
   created () {
-    this.getDistrict()
+    this.getRegions()
   }
 }
 </script>

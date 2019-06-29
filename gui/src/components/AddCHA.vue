@@ -2,8 +2,9 @@
   <v-container>
     <v-layout
       row
-      wrap>
-      <v-spacer/>
+      wrap
+    >
+      <v-spacer />
       <v-flex xs12>
         <v-alert
           style="width: 500px"
@@ -25,20 +26,24 @@
         </v-alert>
         <v-card
           class="mx-auto"
-          style="max-width: 1000px;">
+          style="max-width: 1000px;"
+        >
           <v-system-bar
             color="deep-purple darken-4"
-            dark/>
+            dark
+          />
           <v-toolbar
             color="deep-purple accent-4"
             cards
             dark
-            flat>
+            flat
+          >
             <v-card-title class="title font-weight-regular">Add New CHA</v-card-title>
           </v-toolbar>
           <v-form
             ref="form"
-            class="pa-3 pt-4">
+            class="pa-3 pt-4"
+          >
             <v-layout row>
               <v-flex xs5>
                 <v-text-field
@@ -49,12 +54,14 @@
                   v-model="firstName"
                   box
                   color="deep-purple"
-                  label="First Name*"/>
+                  label="First Name*"
+                />
                 <v-text-field
                   v-model="otherName"
                   box
                   color="deep-purple"
-                  label="Middle Names"/>
+                  label="Middle Names"
+                />
                 <v-text-field
                   required
                   @blur="$v.surname.$touch()"
@@ -63,7 +70,8 @@
                   v-model="surname"
                   box
                   color="deep-purple"
-                  label="Surname*"/>
+                  label="Surname*"
+                />
                 <v-text-field
                   required
                   @blur="$v.phone1.$touch()"
@@ -72,7 +80,8 @@
                   v-model="phone1"
                   box
                   color="deep-purple"
-                  label="Mobile Phone 1*"/>
+                  label="Mobile Phone 1*"
+                />
               </v-flex>
               <v-spacer></v-spacer>
               <v-flex xs5>
@@ -80,7 +89,8 @@
                   v-model="phone2"
                   box
                   color="deep-purple"
-                  label="Mobile Phone 2"/>
+                  label="Mobile Phone 2"
+                />
                 <v-text-field
                   required
                   @blur="$v.email.$touch()"
@@ -89,7 +99,8 @@
                   v-model="email"
                   box
                   color="deep-purple"
-                  label="Email*"/>
+                  label="Email*"
+                />
                 <v-text-field
                   required
                   @blur="$v.odkUsername.$touch()"
@@ -98,10 +109,17 @@
                   v-model="odkUsername"
                   box
                   color="deep-purple"
-                  label="ODK Username*"/>
-                  <label class="text-sm mt-2 text-red" v-if="$v.$error">
-                    <label v-if="!$v.odkUsernameUnique" style="color: red">This username is already taken</label>
-                  </label>
+                  label="ODK Username*"
+                />
+                <label
+                  class="text-sm mt-2 text-red"
+                  v-if="$v.$error"
+                >
+                  <label
+                    v-if="!$v.odkUsernameUnique"
+                    style="color: red"
+                  >This username is already taken</label>
+                </label>
                 <v-treeview
                   :active.sync="active"
                   :open.sync="open"
@@ -125,24 +143,28 @@
               </v-flex>
             </v-layout>
           </v-form>
-          <v-divider/>
+          <v-divider />
           <v-card-actions>
             <v-btn
               flat
-              @click="$refs.form.reset()">
+              @click="$refs.form.reset()"
+            >
               <v-icon>clear</v-icon>Clear
             </v-btn>
-            <v-spacer/>
+            <v-spacer />
             <v-btn
               @click="addCHA()"
               :disabled="$v.$invalid || active.length === 0"
               class="white--text"
               color="deep-purple accent-4"
-              depressed><v-icon left>how_to_reg</v-icon>Add</v-btn>
+              depressed
+            >
+              <v-icon left>how_to_reg</v-icon>Add
+            </v-btn>
           </v-card-actions>
         </v-card>
       </v-flex>
-      <v-spacer/>
+      <v-spacer />
     </v-layout>
   </v-container>
 </template>
@@ -153,13 +175,13 @@ const backendServer = process.env.VUE_APP_BACKEND_SERVER
 
 export default {
   validations: {
-    phone1: { 
+    phone1: {
       required,
       integer,
       minLength: minLength(10),
       maxLength: maxLength(10),
       minValue: minValue(0)
-      },
+    },
     email: { required, email },
     firstName: { required },
     surname: { required },
@@ -175,7 +197,7 @@ export default {
               'Content-Type': 'multipart/form-data'
             }
           }).then((user) => {
-            if(user.data.length > 0) {
+            if (user.data.length > 0) {
               resolve(false)
             } else {
               resolve(true)
@@ -249,7 +271,7 @@ export default {
           'Content-Type': 'multipart/form-data'
         }
       }).then((user) => {
-        if(user.data.length > 0) {
+        if (user.data.length > 0) {
           return callback(true)
         } else {
           return callback(false)
@@ -258,12 +280,12 @@ export default {
     },
     getLocation (item) {
       let query
-      if(!item.typeTag) {
+      if (!item.typeTag) {
         query = '?type=&checkChild=' + false + '&lastLocationType=village'
-      } else{
+      } else {
         query = '?type=' + item.typeTag + '&checkChild=' + false + '&id=' + item.id + '&lastLocationType=village'
       }
-      axios.get(backendServer + '/locationTree' + query).then ((data) => {
+      axios.get(backendServer + '/locationTree' + query).then((data) => {
         item.children.push(...data.data)
         return item;
       })
@@ -281,10 +303,10 @@ export default {
     phone1Errors () {
       const errors = []
       if (!this.$v.phone1.$dirty) return errors
-      if(!this.$v.phone1.required) {
+      if (!this.$v.phone1.required) {
         errors.push('Phone 1 is required')
       }
-      if(this.$v.phone1.$invalid) {
+      if (this.$v.phone1.$invalid) {
         errors.push('Phone 1 is in wrong format')
       }
       return errors
@@ -292,10 +314,10 @@ export default {
     emailErrors () {
       const errors = []
       if (!this.$v.email.$dirty) return errors
-      if(!this.$v.email.required) {
+      if (!this.$v.email.required) {
         errors.push('Email is required')
       }
-      if(this.$v.email.$invalid) {
+      if (this.$v.email.$invalid) {
         errors.push('Email is in wrong format')
       }
       return errors
@@ -315,7 +337,7 @@ export default {
     odkUsernameErrors () {
       const errors = []
       if (!this.$v.odkUsername.$dirty) return errors
-      if(!this.$v.odkUsername.required) {
+      if (!this.$v.odkUsername.required) {
         errors.push('ODK Username is required')
       }
       return errors

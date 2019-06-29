@@ -11,21 +11,21 @@
         <v-btn
           flat
           to="Dashboard"
-          v-if='!$store.state.denyAccess'
+          v-if="!$store.state.denyAccess"
         >
           <v-icon>dashboard</v-icon> Home
         </v-btn>
         <v-btn
           flat
           to="AddCHA"
-          v-if='!$store.state.denyAccess'
+          v-if="!$store.state.denyAccess"
         >
           <v-icon>add</v-icon> Add CHA
         </v-btn>
         <v-btn
           flat
           to="AddHFS"
-          v-if='!$store.state.denyAccess'
+          v-if="!$store.state.denyAccess"
         >
           <v-icon>add</v-icon> Add HFS
         </v-btn>
@@ -33,7 +33,7 @@
           open-on-hover
           bottom
           offset-y
-          v-if='!$store.state.denyAccess'
+          v-if="!$store.state.denyAccess"
         >
           <v-btn
             slot="activator"
@@ -44,7 +44,7 @@
           <v-list>
             <v-list-tile
               to="addRegion"
-              v-if='$store.state.auth.role === "Admin"'
+              v-if="$store.state.auth.role === 'Admin'"
             >
               <v-list-tile-title>
                 <v-icon>add</v-icon>Add Region
@@ -52,7 +52,7 @@
             </v-list-tile>
             <v-list-tile
               to="addDistrict"
-              v-if='$store.state.auth.role === "Admin"'
+              v-if="$store.state.auth.role === 'Admin'"
             >
               <v-list-tile-title>
                 <v-icon>add</v-icon>Add District
@@ -60,7 +60,7 @@
             </v-list-tile>
             <v-list-tile
               to="addFacility"
-              v-if='$store.state.auth.role === "Admin"'
+              v-if="$store.state.auth.role === 'Admin'"
             >
               <v-list-tile-title>
                 <v-icon>add</v-icon>Add Facility
@@ -68,7 +68,7 @@
             </v-list-tile>
             <v-list-tile
               to="addVillage"
-              v-if='$store.state.auth.role === "Admin"'
+              v-if="$store.state.auth.role === 'Admin'"
             >
               <v-list-tile-title>
                 <v-icon>add</v-icon>Add Village
@@ -80,7 +80,70 @@
           open-on-hover
           bottom
           offset-y
-          v-if='!$store.state.denyAccess'
+          v-if="!$store.state.denyAccess"
+        >
+          <v-btn
+            slot="activator"
+            flat
+          >
+            <v-icon>list</v-icon>Reports
+          </v-btn>
+          <v-list>
+            <v-list-tile
+              to="RegionsReport"
+              v-if="$store.state.auth.role === 'Admin'"
+            >
+              <v-list-tile-title>
+                <v-icon>list</v-icon>Regions
+              </v-list-tile-title>
+            </v-list-tile>
+            <v-list-tile
+              to="DistrictsReport"
+              v-if="$store.state.auth.role === 'Admin'"
+            >
+              <v-list-tile-title>
+                <v-icon>list</v-icon>Districts
+              </v-list-tile-title>
+            </v-list-tile>
+            <v-list-tile
+              to="FacilitiesReport"
+              v-if="$store.state.auth.role === 'Admin'"
+            >
+              <v-list-tile-title>
+                <v-icon>add</v-icon>Facilities
+              </v-list-tile-title>
+            </v-list-tile>
+            <v-list-tile
+              to="VillagesReport"
+              v-if="$store.state.auth.role === 'Admin'"
+            >
+              <v-list-tile-title>
+                <v-icon>list</v-icon>Villages
+              </v-list-tile-title>
+            </v-list-tile>
+            <v-list-tile
+              to="CHAReport"
+              v-if="$store.state.auth.role === 'Admin'"
+            >
+              <v-list-tile-title>
+                <v-icon>list</v-icon>CHA
+              </v-list-tile-title>
+            </v-list-tile>
+            <v-list-tile
+              to="HFSReport"
+              v-if="$store.state.auth.role === 'Admin'"
+            >
+              <v-list-tile-title>
+                <v-icon>list</v-icon>HFS
+              </v-list-tile-title>
+            </v-list-tile>
+          </v-list>
+        </v-menu>
+        <v-menu
+          open-on-hover
+          bottom
+          offset-y
+          v-if="!$store.state.denyAccess"
         >
           <v-btn
             slot="activator"
@@ -93,7 +156,7 @@
               <v-list-tile
                 to="addUser"
                 slot="activator"
-                v-if='$store.state.auth.role === "Admin"'
+                v-if="$store.state.auth.role === 'Admin'"
               >
                 <v-list-tile-title>
                   <v-icon>perm_identity</v-icon>Add User
@@ -105,7 +168,7 @@
               <v-list-tile
                 to="usersList"
                 slot="activator"
-                v-if='$store.state.auth.role === "Admin"'
+                v-if="$store.state.auth.role === 'Admin'"
               >
                 <v-list-tile-title>
                   <v-icon>perm_identity</v-icon>Users List
@@ -123,15 +186,13 @@
         <v-btn
           flat
           to="Logout"
-          v-if='!$store.state.denyAccess'
+          v-if="!$store.state.denyAccess"
         >
           <v-icon>logout</v-icon> Logout
         </v-btn>
       </v-toolbar-items>
       <v-spacer></v-spacer>
-      <v-toolbar-items>
-
-      </v-toolbar-items>
+      <v-toolbar-items> </v-toolbar-items>
     </v-toolbar>
     <v-content>
       <v-dialog
@@ -144,7 +205,7 @@
           dark
         >
           <v-card-text>
-            {{$store.state.progressTitle}}
+            {{ $store.state.progressTitle }}
             <v-progress-linear
               indeterminate
               color="white"
@@ -164,11 +225,11 @@
             dark
           >
             <v-toolbar-title>
-              {{$store.state.errorTitle}}
+              {{ $store.state.errorTitle }}
             </v-toolbar-title>
           </v-toolbar>
           <v-card-text>
-            {{$store.state.errorDescription}}
+            {{ $store.state.errorDescription }}
           </v-card-text>
           <v-card-actions>
             <v-btn
@@ -185,37 +246,34 @@
       color="primary"
       :fixed="fixed"
       app
-    >
-
-    </v-footer>
+    > </v-footer>
   </v-app>
 </template>
 
 <script>
-const backendServer = process.env.VUE_APP_BACKEND_SERVER
-import axios from 'axios'
-import VueCookies from 'vue-cookies'
+const backendServer = process.env.VUE_APP_BACKEND_SERVER;
+import axios from "axios";
+import VueCookies from "vue-cookies";
 export default {
-  name: 'App',
-  components: {
-  },
+  name: "App",
+  components: {},
   data () {
     return {
       title: "CHAD",
-      fixed: false,
-    }
+      fixed: false
+    };
   },
-  created() {
-    if (VueCookies.get('token') && VueCookies.get('userID')) {
-      this.$store.state.auth.token = VueCookies.get('token')
-      this.$store.state.auth.userID = VueCookies.get('userID')
-      this.$store.state.auth.username = VueCookies.get('username')
-      this.$store.state.auth.role = VueCookies.get('role')
-      axios.get(backendServer + '/isTokenActive/').then(response => {
+  created () {
+    if (VueCookies.get("token") && VueCookies.get("userID")) {
+      this.$store.state.auth.token = VueCookies.get("token");
+      this.$store.state.auth.userID = VueCookies.get("userID");
+      this.$store.state.auth.username = VueCookies.get("username");
+      this.$store.state.auth.role = VueCookies.get("role");
+      axios.get(backendServer + "/isTokenActive/").then(response => {
         // will come here only if the token is active
-        this.$store.state.denyAccess = false
-      })
+        this.$store.state.denyAccess = false;
+      });
     }
   }
-}
+};
 </script>

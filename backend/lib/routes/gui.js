@@ -89,6 +89,130 @@ router.post('/authenticate', (req, res) => {
   })
 })
 
+router.get('/getRegions/:id?', (req, res) => {
+  winston.info("Received a request to get regions")
+  let id = req.params.id
+  mongo.getRegions(id, (err, data) => {
+    if (err) {
+      return res.status(500).send()
+    }
+    data = JSON.parse(JSON.stringify(data))
+    res.status(200).json(data)
+  })
+})
+
+router.get('/getDistricts/:id?', (req, res) => {
+  winston.info("Received a request to get districts")
+  let id = req.params.id
+  mongo.getDistricts(id, (err, data) => {
+    if (err) {
+      return res.status(500).send()
+    }
+    data = JSON.parse(JSON.stringify(data))
+    res.status(200).json(data)
+  })
+})
+
+router.get('/getFacilities/:id?', (req, res) => {
+  winston.info("Received a request to get facilities")
+  let id = req.params.id
+  mongo.getFacilities(id, (err, data) => {
+    if (err) {
+      return res.status(500).send()
+    }
+    data = JSON.parse(JSON.stringify(data))
+    res.status(200).json(data)
+  })
+})
+
+router.get('/getVillages/:id?', (req, res) => {
+  winston.info("Received a request to get villages")
+  let id = req.params.id
+  mongo.getVillages(id, (err, data) => {
+    if (err) {
+      return res.status(500).send()
+    }
+    data = JSON.parse(JSON.stringify(data))
+    res.status(200).json(data)
+  })
+})
+
+router.get('/getCHAByVillage/:id?', (req, res) => {
+  winston.info("Received a request to get CHA by village")
+  let id = req.params.id
+  mongo.getVillages(id, (err, data) => {
+    if (err) {
+      return res.status(500).send()
+    }
+    data = JSON.parse(JSON.stringify(data))
+    res.status(200).json(data)
+  })
+})
+
+router.get('/getCHAById/:id?', (req, res) => {
+  winston.info("Received a request to get CHA by ID")
+  let id = req.params.id
+  mongo.getCHA(id, (err, data) => {
+    if (err) {
+      return res.status(500).send()
+    }
+    data = JSON.parse(JSON.stringify(data))
+    res.status(200).json(data)
+  })
+})
+
+router.post('/editLocation', (req, res) => {
+  winston.info("Received a request to edit location")
+  const form = new formidable.IncomingForm();
+  form.parse(req, (err, fields, files) => {
+    let name = fields.name
+    let id = fields.id
+    let type = fields.type
+    parent = fields.parent
+    mongo.editLocation(id, name, type, parent, (err, data) => {
+      if (err) {
+        winston.error(err)
+        res.status(500).json({
+          error: "Internal error occured"
+        })
+      } else {
+        res.status(200).json({
+          id: data._id
+        })
+      }
+    })
+  })
+})
+
+router.delete('/deleteLocation/:id/:type', (req, res) => {
+  winston.info("Received a request to delete location")
+  const database = config.getConf("DB_NAME")
+
+  if (mongoUser && mongoPasswd) {
+    var uri = `mongodb://${mongoUser}:${mongoPasswd}@${mongoHost}:${mongoPort}/${database}`;
+  } else {
+    var uri = `mongodb://${mongoHost}:${mongoPort}/${database}`;
+  }
+  mongoose.connect(uri, {}, () => {
+    let model = req.params.type + 'Model'
+    let id = req.params.id
+    models[model].deleteOne({
+      _id: id
+    }, (err, data) => {
+      if (err) {
+        winston.error(err)
+        res.status(500).json({
+          error: "Internal error occured"
+        })
+      } else {
+        res.status(200).json({
+          id: data._id
+        })
+      }
+    })
+  })
+})
+
 router.post('/addUser', (req, res) => {
   winston.info("Received a signup request")
   const form = new formidable.IncomingForm();
@@ -122,7 +246,9 @@ router.post('/addUser', (req, res) => {
               })
             } else {
               winston.info("User created successfully")
-              res.status(200).json({id: data._id})
+              res.status(200).json({
+                id: data._id
+              })
             }
           })
         } else {
@@ -221,7 +347,9 @@ router.post('/addRegion', (req, res) => {
           })
         } else {
           winston.info("Region saved successfully")
-          res.status(200).json({id: data._id})
+          res.status(200).json({
+            id: data._id
+          })
         }
       })
     })
@@ -250,7 +378,9 @@ router.post('/addDistrict', (req, res) => {
           })
         } else {
           winston.info("District saved successfully")
-          res.status(200).json({id: data._id})
+          res.status(200).json({
+            id: data._id
+          })
         }
       })
     })
@@ -279,7 +409,9 @@ router.post('/addFacility', (req, res) => {
           })
         } else {
           winston.info("Facility saved successfully")
-          res.status(200).json({id: data._id})
+          res.status(200).json({
+            id: data._id
+          })
         }
       })
     })
@@ -308,7 +440,9 @@ router.post('/addVillage', (req, res) => {
           })
         } else {
           winston.info("Village saved successfully")
-          res.status(200).json({id: data._id})
+          res.status(200).json({
+            id: data._id
+          })
         }
       })
     })
@@ -323,6 +457,12 @@ router.post('/addCHA', (req, res) => {
       var uri = `mongodb://${mongoUser}:${mongoPasswd}@${mongoHost}:${mongoPort}/${database}`;
     } else {
       var uri = `mongodb://${mongoHost}:${mongoPort}/${database}`;
+    }
+    if (!fields.phone2) {
+      fields.phone2 = null
+    }
+    if (!fields.otherName) {
+      fields.otherName = null
     }
     mongoose.connect(uri, {}, () => {
       let CHA = new models.CHAModel({
@@ -353,15 +493,78 @@ router.post('/addCHA', (req, res) => {
             }
           }
           rapidpro.addContact(contact, (err, newContact) => {
-            if(!err) {
+            if (!err) {
               mongo.updateCHARapidproId(newContact.fields.chadid, newContact.uuid, () => {
-                
+
               })
             }
           })
           aggregator.createAccount(fields, () => {
             winston.info("CHA saved successfully")
-            res.status(200).json({id: data._id})
+            res.status(200).json({
+              id: data._id
+            })
+          })
+        }
+      })
+    })
+  })
+})
+
+router.post('/editCHA', (req, res) => {
+  const form = new formidable.IncomingForm();
+  form.parse(req, (err, fields, files) => {
+    fields.cha = JSON.parse(fields.cha)
+    winston.info("Received a request to update] a CHA")
+    if (mongoUser && mongoPasswd) {
+      var uri = `mongodb://${mongoUser}:${mongoPasswd}@${mongoHost}:${mongoPort}/${database}`;
+    } else {
+      var uri = `mongodb://${mongoHost}:${mongoPort}/${database}`;
+    }
+    if (!fields.cha.phone2) {
+      fields.cha.phone2 = null
+    }
+    if (!fields.otherName) {
+      fields.otherName = null
+    }
+    mongoose.connect(uri, {}, () => {
+      let updates = {
+        firstName: fields.cha.firstName,
+        otherName: fields.cha.otherName,
+        surname: fields.cha.surname,
+        email: fields.cha.email,
+        phone1: fields.cha.phone1,
+        phone2: fields.cha.phone2,
+        odkUsername: fields.cha.odkUsername,
+        village: fields.cha.village._id
+      }
+      mongoose.set('useFindAndModify', false)
+      models.CHAModel.findByIdAndUpdate(fields.cha._id, updates, (err, data) => {
+        if (err) {
+          winston.error(err)
+          res.status(500).json({
+            error: "Internal error occured"
+          })
+        } else {
+          res.status(200).json({
+            id: data._id
+          })
+          let urns = ["tel:+255" + fields.cha.phone1.substring(1)]
+          let contact = {
+            "name": fields.firstName + " " + fields.cha.otherName + " " + fields.cha.surname,
+            "urns": urns,
+            "fields": {
+              "chadid": data._id,
+              "category": "CHA",
+              "village": fields.cha.village._id
+            }
+          }
+          rapidpro.addContact(contact, (err, newContact) => {
+            if (!err) {
+              mongo.updateCHARapidproId(newContact.fields.cha._id, newContact.uuid, () => {
+
+              })
+            }
           })
         }
       })
@@ -378,7 +581,9 @@ router.post('/usernameExist', (req, res) => {
       var uri = `mongodb://${mongoHost}:${mongoPort}/${database}`;
     }
     mongoose.connect(uri, {}, () => {
-      models.CHAModel.find({odkUsername: fields.username}, (err, data) => {
+      models.CHAModel.find({
+        odkUsername: fields.username
+      }, (err, data) => {
         res.status(200).json(data)
       })
     })
@@ -422,14 +627,16 @@ router.post('/addHFS', (req, res) => {
             }
           }
           rapidpro.addContact(contact, (err, newContact) => {
-            if(!err) {
+            if (!err) {
               mongo.updateHFSRapidproId(newContact.fields.chadid, newContact.uuid, () => {
-                
+
               })
             }
           })
           winston.info("HFS saved successfully")
-          res.status(200).json({id: data._id})
+          res.status(200).json({
+            id: data._id
+          })
         }
       })
     })
@@ -440,8 +647,10 @@ router.get('/location/:type', (req, res) => {
   let model = req.params.type + 'Model'
   let id = req.query.id
   let query
-  if(id) {
-    query = {id: id}
+  if (id) {
+    query = {
+      id: id
+    }
   } else {
     query = {}
   }
@@ -452,6 +661,7 @@ router.get('/location/:type', (req, res) => {
   }
   mongoose.connect(uri, {}, () => {
     models[model].find(query, (err, data) => {
+      data = JSON.parse(JSON.stringify(data))
       res.status(200).json(data)
     })
   })
@@ -462,16 +672,16 @@ router.get('/locationTree', (req, res) => {
   let type = req.query.type
   let lastLocationType = req.query.lastLocationType
   let checkChild = JSON.parse(req.query.checkChild)
-  let model,childModel,typeTag
-  if(!type) {
+  let model, childModel, typeTag
+  if (!type) {
     model = "RegionsModel"
     childModel = "DistrictsModel"
     typeTag = "region"
-  } else if(type === 'region') {
+  } else if (type === 'region') {
     model = 'DistrictsModel'
     childModel = "FacilitiesModel"
     typeTag = "district"
-  } else if(type === 'district') {
+  } else if (type === 'district') {
     model = 'FacilitiesModel'
     childModel = "VillagesModel"
     typeTag = "facility"
@@ -480,10 +690,12 @@ router.get('/locationTree', (req, res) => {
     childModel = null
     typeTag = "village"
   }
-  
+
   let query
-  if(id) {
-    query = {parent: id}
+  if (id) {
+    query = {
+      parent: id
+    }
   } else {
     query = {}
   }
@@ -500,15 +712,17 @@ router.get('/locationTree', (req, res) => {
         delete data1[index]._id
         data1[index].id = id
         data1[index].typeTag = typeTag
-        if(childModel && checkChild) {
-          models[childModel].find({'parent': dt.id}, (err, data2) => {
-            if(data2.length > 0 && lastLocationType != typeTag) {
+        if (childModel && checkChild) {
+          models[childModel].find({
+            'parent': dt.id
+          }, (err, data2) => {
+            if (data2.length > 0 && lastLocationType != typeTag) {
               data1[index].children = []
             }
             return nxtDt()
           })
-        } else if(childModel) {
-          if(lastLocationType != typeTag) {
+        } else if (childModel) {
+          if (lastLocationType != typeTag) {
             data1[index].children = []
           }
           return nxtDt()
@@ -538,7 +752,9 @@ router.get('/getLocationTree/:type', (req, res) => {
           children: []
         })
         let children = []
-        models.DistrictsModel.find({region: region._id}, (err, data) => {
+        models.DistrictsModel.find({
+          region: region._id
+        }, (err, data) => {
           async.eachSeries(data, (district, nxtDistr) => {
             children.push({
               name: district.name,
@@ -547,7 +763,7 @@ router.get('/getLocationTree/:type', (req, res) => {
             })
             return nxtDistr()
           }, () => {
-            regions[regions.length-1].children = children
+            regions[regions.length - 1].children = children
           })
         })
       })

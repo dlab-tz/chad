@@ -102,7 +102,7 @@ app.all('/populateData', (req, res) => {
   let householdFormName = config.getConf("aggregator:householdForm:name")
   winston.info("Received a request to update houses in XLSForm")
   aggregator.downloadXLSForm(householdFormID, householdFormName, (err) => {
-    if(err) {
+    if (err) {
       return res.status(500).send()
     }
     aggregator.downloadFormData(householdFormID, (err, formData) => {
@@ -114,11 +114,11 @@ app.all('/populateData', (req, res) => {
         return res.status(500).send()
       }
       getWorkbook(__dirname + '/' + householdFormName + '.xlsx', (chadWorkbook) => {
-        //loop through online aggregator formData and compare against 
+        //loop through online aggregator formData and compare against
         async.each(formData, (data, nxt) => {
           let keys = Object.keys(data)
-          let pregnant_wom_name, pregnant_wom_age,pregnant_wom_name_new, pregnant_wom_age_new
-          if(keys.includes('pregnant_woman_name_new')) {
+          let pregnant_wom_name, pregnant_wom_age, pregnant_wom_name_new, pregnant_wom_age_new
+          if (keys.includes('pregnant_woman_name_new')) {
             pregnant_wom_name_new = data['pregnant_woman_name_new']
           } else {
             let preg_name_key = getKeys(keys, 'pregnant_woman_name_new')
@@ -126,7 +126,7 @@ app.all('/populateData', (req, res) => {
               pregnant_wom_name_new = data[preg_name_key]
             }
           }
-          if(keys.includes('pregnant_woman_name')) {
+          if (keys.includes('pregnant_woman_name')) {
             pregnant_wom_name = data['pregnant_woman_name']
           } else {
             let preg_name_key = getKeys(keys, 'pregnant_woman_name')
@@ -134,7 +134,7 @@ app.all('/populateData', (req, res) => {
               pregnant_wom_name = data[preg_name_key]
             }
           }
-          if(keys.includes('pregnant_woman_age_new')) {
+          if (keys.includes('pregnant_woman_age_new')) {
             pregnant_wom_age_new = data['pregnant_woman_age_new']
           } else {
             let preg_age_key = getKeys(keys, 'pregnant_woman_age_new')
@@ -142,34 +142,34 @@ app.all('/populateData', (req, res) => {
               pregnant_wom_age_new = data[preg_age_key]
             }
           }
-          if(data.house_name != 'add_new' && pregnant_wom_name != 'add_new') {
+          if (data.house_name != 'add_new' && pregnant_wom_name != 'add_new') {
             return nxt()
           }
           let house_name = data.house_name_new
           let house_number = data.house_number_new
-          if(data.house_name != 'add_new') {
+          if (data.house_name != 'add_new') {
             house_number = data.house_name.split('-').pop()
             house_name = data.house_name.split('-')[0]
           }
           let chadChoicesWorksheet = chadWorkbook.getWorksheet('choices')
           let add_preg_woman, add_house
-          if(pregnant_wom_name == 'add_new') {
+          if (pregnant_wom_name == 'add_new') {
             add_preg_woman = true
           }
-          if(data.house_name == 'add_new') {
+          if (data.house_name == 'add_new') {
             add_house = true
           }
           const chadPromises = []
           chadChoicesWorksheet.eachRow((chadRows, chadRowNum) => {
             chadPromises.push(new Promise((resolve, reject) => {
-              if(!chadRows.values.includes('house_name') && !chadRows.values.includes('pregnant_women')) {
+              if (!chadRows.values.includes('house_name') && !chadRows.values.includes('pregnant_women')) {
                 return resolve()
               }
-              if(chadRows.values.includes('house_name') && chadRows.values.includes(house_name + ' - ' + house_number)) {
+              if (chadRows.values.includes('house_name') && chadRows.values.includes(house_name + ' - ' + house_number)) {
                 add_house = false
               }
               let preg_wom_label = pregnant_wom_name_new + ' - ' + pregnant_wom_age_new + ' - ' + house_number
-              if(chadRows.values.includes('pregnant_women') && chadRows.values.includes(preg_wom_label)) {
+              if (chadRows.values.includes('pregnant_women') && chadRows.values.includes(preg_wom_label)) {
                 add_preg_woman = false
               }
               return resolve()
@@ -178,7 +178,7 @@ app.all('/populateData', (req, res) => {
           Promise.all(chadPromises).then(() => {
             async.series({
               house: (callback) => {
-                if(add_house) {
+                if (add_house) {
                   let lastRow = chadChoicesWorksheet.lastRow
                   let getRowInsert = chadChoicesWorksheet.getRow(++(lastRow.number))
                   getRowInsert.getCell(1).value = 'house_name'
@@ -192,7 +192,7 @@ app.all('/populateData', (req, res) => {
                 }
               },
               preg_wom: (callback) => {
-                if(add_preg_woman) {
+                if (add_preg_woman) {
                   let lastRow = chadChoicesWorksheet.lastRow
                   let getRowInsert = chadChoicesWorksheet.getRow(++(lastRow.number))
                   getRowInsert.getCell(1).value = 'pregnant_women'
@@ -231,6 +231,7 @@ app.all('/populateData', (req, res) => {
     })
     return key_found
   }
+
   function getWorkbook(filename, callback) {
     let workbook = new Excel.Workbook()
     workbook.xlsx.readFile(filename).then(() => {
@@ -276,7 +277,7 @@ app.post('/newSubmission', (req, res) => {
             let new_pregnant_woman_age = mixin.getDataFromJSON(submission, 'pregnant_woman_age_new')
             let house_number
             house_number = mixin.getDataFromJSON(submission, 'house_number_new')
-            if(!house_number) {
+            if (!house_number) {
               house_number = mixin.getDataFromJSON(submission, 'house_number')
             }
             aggregator.populatePregnantWomen(chadChoicesWorksheet, new_preg_woman_name, new_pregnant_woman_age, house_number, (err) => {
@@ -298,30 +299,30 @@ app.post('/newSubmission', (req, res) => {
 
       // check if needs referal
       // check pregnant woman referral
-      if(submission.hasOwnProperty('rp_preg_woman')) {
+      if (submission.hasOwnProperty('rp_preg_woman')) {
         async.each(submission.rp_preg_woman, (preg_wom, nxtPregWom) => {
           // Schedule a reminder for clinic
           let house_number = mixin.getDataFromJSON(submission, 'house_name')
-          if(house_number == 'add_new') {
+          if (house_number == 'add_new') {
             house_number = mixin.getDataFromJSON(submission, 'house_number_new')
           }
           last_clin_vis = mixin.getDataFromJSON(preg_wom, 'forth_visit_above')
-          if(!last_clin_vis) {
+          if (!last_clin_vis) {
             last_clin_vis = mixin.getDataFromJSON(preg_wom, 'third_visit')
-            if(!last_clin_vis) {
+            if (!last_clin_vis) {
               last_clin_vis = mixin.getDataFromJSON(preg_wom, 'second_visit')
-              if(!last_clin_vis) {
+              if (!last_clin_vis) {
                 last_clin_vis = mixin.getDataFromJSON(preg_wom, 'first_visit')
               }
             }
           }
           let last_menstrual = mixin.getDataFromJSON(preg_wom, 'last_menstrual_period')
           let preg_wom_name = mixin.getDataFromJSON(preg_wom, 'pregnant_woman_name')
-          if(preg_wom_name === 'add_new') {
+          if (preg_wom_name === 'add_new') {
             preg_wom_name = mixin.getDataFromJSON(preg_wom, 'pregnant_woman_name_new')
             let preg_wom_age = mixin.getDataFromJSON(preg_wom, 'pregnant_woman_age_new')
             mongo.addPregnantWoman(house_number, preg_wom_name, preg_wom_age, last_clin_vis, last_menstrual, submission.username)
-          } else if(preg_wom_name !== 'add_new') {
+          } else if (preg_wom_name !== 'add_new') {
             let preg_wom_name_arr = preg_wom_name.split('-')
             preg_wom_name = preg_wom_name_arr.shift().trim()
             preg_wom_age = preg_wom_name_arr.shift().trim()
@@ -330,7 +331,7 @@ app.post('/newSubmission', (req, res) => {
           // end of scheduling a reminder for clinic
 
           let danger_signs = mixin.getDataFromJSON(preg_wom, 'danger_signs')
-          if(danger_signs) {
+          if (danger_signs) {
             let sms = "Patient:Pregnant Woman \\n Issues:"
             let issues = ''
             danger_signs = danger_signs.split(" ")
@@ -338,11 +339,11 @@ app.post('/newSubmission', (req, res) => {
               const promises = []
               chadChoicesWorksheet.eachRow((chadRows, chadRowNum) => {
                 promises.push(new Promise((resolve, reject) => {
-                  if(chadRows.values.includes('danger_signs') && chadRows.values.includes(danger_sign)) {
-                    if(issues) {
+                  if (chadRows.values.includes('danger_signs') && chadRows.values.includes(danger_sign)) {
+                    if (issues) {
                       issues += ", "
                     }
-                    issues += chadRows.values[chadRows.values.length-1]
+                    issues += chadRows.values[chadRows.values.length - 1]
                     resolve()
                   } else {
                     resolve()
@@ -364,25 +365,25 @@ app.post('/newSubmission', (req, res) => {
       }
 
       // check postnatal mother referral
-      if(submission.hasOwnProperty('rp_breast_feed_mother')) {
+      if (submission.hasOwnProperty('rp_breast_feed_mother')) {
         async.each(submission.rp_breast_feed_mother, (postnatal_mthr, nxtPostnatalMthr) => {
           let psigns = mixin.getDataFromJSON(postnatal_mthr, 'puperium_danger_signs')
           let signs = []
-          if(psigns) {
+          if (psigns) {
             signs = psigns.split(" ")
           }
-          if(signs.length > 0) {
+          if (signs.length > 0) {
             let sms = "Patient:Postnatal mother \\n Issues:"
             let issues = ''
             async.eachSeries(signs, (sign, nxtDangerSign) => {
               const promises = []
               chadChoicesWorksheet.eachRow((chadRows, chadRowNum) => {
                 promises.push(new Promise((resolve, reject) => {
-                  if(chadRows.values.includes('puperium_danger_signs') && chadRows.values.includes(sign)) {
-                    if(issues) {
+                  if (chadRows.values.includes('puperium_danger_signs') && chadRows.values.includes(sign)) {
+                    if (issues) {
                       issues += ", "
                     }
-                    issues += chadRows.values[chadRows.values.length-1]
+                    issues += chadRows.values[chadRows.values.length - 1]
                     resolve()
                   } else {
                     resolve()
@@ -404,28 +405,28 @@ app.post('/newSubmission', (req, res) => {
       }
 
       // check neonatal child referral
-      if(submission.hasOwnProperty('rp_breast_feed_mother')) {
+      if (submission.hasOwnProperty('rp_breast_feed_mother')) {
         async.each(submission.rp_breast_feed_mother, (postnatal_mthr, nxtNeonatalChild) => {
           let neo_babies = mixin.getDataFromJSON(postnatal_mthr, 'rp_neonatal_baby')
           async.each(neo_babies, (neo_baby, nxtNeoBaby) => {
             let nsigns = mixin.getDataFromJSON(neo_baby, 'neonatal_danger_sign')
             let signs = []
-            if(nsigns) {
+            if (nsigns) {
               signs = nsigns.split(" ")
             }
 
-            if(signs.length > 0) {
+            if (signs.length > 0) {
               let sms = "Patient:Neonatal baby \\n Issues:"
               let issues = ''
               async.eachSeries(signs, (sign, nxtDangerSign) => {
                 const promises = []
                 chadChoicesWorksheet.eachRow((chadRows, chadRowNum) => {
                   promises.push(new Promise((resolve, reject) => {
-                    if(chadRows.values.includes('neonatal_danger_sign') && chadRows.values.includes(sign)) {
-                      if(issues) {
+                    if (chadRows.values.includes('neonatal_danger_sign') && chadRows.values.includes(sign)) {
+                      if (issues) {
                         issues += ", "
                       }
-                      issues += chadRows.values[chadRows.values.length-1]
+                      issues += chadRows.values[chadRows.values.length - 1]
                       resolve()
                     } else {
                       resolve()
@@ -451,10 +452,10 @@ app.post('/newSubmission', (req, res) => {
 
       // check children under 5 referral
       let under_5 = mixin.getDataFromJSON(submission, 'rp_children_under_5')
-      if(under_5 && under_5.length > 0) {
+      if (under_5 && under_5.length > 0) {
         async.each(under_5, (susp_pat, nxtSuspPat) => {
           let danger_signs = mixin.getDataFromJSON(susp_pat, 'danger_signs_child')
-          if(danger_signs) {
+          if (danger_signs) {
             let sms = "Patient:Children under 5 \\n Issues:"
             let issues = ''
             danger_signs = danger_signs.split(" ")
@@ -462,11 +463,11 @@ app.post('/newSubmission', (req, res) => {
               const promises = []
               chadChoicesWorksheet.eachRow((chadRows, chadRowNum) => {
                 promises.push(new Promise((resolve, reject) => {
-                  if(chadRows.values.includes('danger_signs_child') && chadRows.values.includes(danger_sign)) {
-                    if(issues) {
+                  if (chadRows.values.includes('danger_signs_child') && chadRows.values.includes(danger_sign)) {
+                    if (issues) {
                       issues += ", "
                     }
-                    issues += chadRows.values[chadRows.values.length-1]
+                    issues += chadRows.values[chadRows.values.length - 1]
                     resolve()
                   } else {
                     resolve()
@@ -489,16 +490,16 @@ app.post('/newSubmission', (req, res) => {
 
       // check  any other sick person referral
       let sick_person = mixin.getDataFromJSON(submission, 'rp_sick_person')
-      if(sick_person && sick_person.length > 0) {
+      if (sick_person && sick_person.length > 0) {
         async.each(sick_person, (susp_pat, nxtSuspPat) => {
           let danger_signs = mixin.getDataFromJSON(susp_pat, 'general_examination')
-          if(danger_signs) {
+          if (danger_signs) {
             let sms = "Patient:Sick person \\n Issues:"
             let issues = ''
             danger_signs = danger_signs.split(" ")
             async.eachSeries(danger_signs, (danger_sign, nxtDangerSign) => {
-              if(danger_sign === 'others') {
-                if(issues) {
+              if (danger_sign === 'others') {
+                if (issues) {
                   issues += ", "
                 }
                 issues += mixin.getDataFromJSON(susp_pat, 'general_examination_others')
@@ -507,11 +508,11 @@ app.post('/newSubmission', (req, res) => {
               const promises = []
               chadChoicesWorksheet.eachRow((chadRows, chadRowNum) => {
                 promises.push(new Promise((resolve, reject) => {
-                  if(chadRows.values.includes('general_examination') && chadRows.values.includes(danger_sign)) {
-                    if(issues) {
+                  if (chadRows.values.includes('general_examination') && chadRows.values.includes(danger_sign)) {
+                    if (issues) {
                       issues += ", "
                     }
-                    issues += chadRows.values[chadRows.values.length-1]
+                    issues += chadRows.values[chadRows.values.length - 1]
                     resolve()
                   } else {
                     resolve()
@@ -546,7 +547,7 @@ app.post('/newSubmission', (req, res) => {
 
 app.all('/clinicReminder', (req, res) => {
   rapidpro.clinicReminder((err) => {
-    if(err) {
+    if (err) {
       res.status(500).send()
     } else {
       res.status(200).send()
@@ -560,7 +561,7 @@ app.get('/syncContacts', (req, res) => {
       mongo.getCHA(null, (err, data) => {
         async.each(data, (cha, nxtCha) => {
           let urns = ["tel:+255" + cha.phone1.substring(1)]
-          if(cha.phone2 && cha.phone.length == 10) {
+          if (cha.phone2 && cha.phone.length == 10) {
             urns.push("tel:+255" + cha.phone2.substring(1))
           }
           let contact = {
@@ -569,11 +570,11 @@ app.get('/syncContacts', (req, res) => {
             "fields": {
               "chadid": cha._id,
               "category": "CHA",
-              "village": cha.village
+              "village": cha.village._id
             }
           }
           rapidpro.addContact(contact, (err, newContact) => {
-            if(!err) {
+            if (!err) {
               mongo.updateCHARapidproId(newContact.fields.chadid, newContact.uuid, () => {
                 return nxtCha()
               })
@@ -590,7 +591,7 @@ app.get('/syncContacts', (req, res) => {
       mongo.getHFS(null, (err, data) => {
         async.each(data, (cha, nxtHfs) => {
           let urns = ["tel:+255" + cha.phone1.substring(1)]
-          if(cha.phone2 && cha.phone2.length == 10) {
+          if (cha.phone2 && cha.phone2.length == 10) {
             urns.push("tel:+255" + cha.phone2.substring(1))
           }
           let contact = {
@@ -603,7 +604,7 @@ app.get('/syncContacts', (req, res) => {
             }
           }
           rapidpro.addContact(contact, (err, newContact) => {
-            if(!err) {
+            if (!err) {
               mongo.updateHFSRapidproId(newContact.fields.chadid, newContact.uuid, () => {
                 return nxtHfs()
               })

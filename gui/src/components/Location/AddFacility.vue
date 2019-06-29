@@ -2,8 +2,9 @@
   <v-container>
     <v-layout
       row
-      wrap>
-      <v-spacer/>
+      wrap
+    >
+      <v-spacer />
       <v-flex xs6>
         <v-alert
           style="width: 500px"
@@ -25,20 +26,24 @@
         </v-alert>
         <v-card
           class="mx-auto"
-          style="max-width: 500px;">
+          style="max-width: 500px;"
+        >
           <v-system-bar
             color="deep-purple darken-4"
-            dark/>
+            dark
+          />
           <v-toolbar
             color="deep-purple accent-4"
             cards
             dark
-            flat>
+            flat
+          >
             <v-card-title class="title font-weight-regular">Add New Facility</v-card-title>
           </v-toolbar>
           <v-form
             ref="form"
-            class="pa-3 pt-4">
+            class="pa-3 pt-4"
+          >
             <v-text-field
               required
               @blur="$v.name.$touch()"
@@ -47,7 +52,8 @@
               v-model="name"
               box
               color="deep-purple"
-              label="Facility Name"/>
+              label="Facility Name"
+            />
             <v-treeview
               :active.sync="active"
               :open.sync="open"
@@ -69,34 +75,40 @@
               </template>
             </v-treeview>
           </v-form>
-          <v-divider/>
+          <v-divider />
           <v-card-actions>
             <v-btn
               flat
-              @click="$refs.form.reset()">
+              @click="$refs.form.reset()"
+            >
               <v-icon>clear</v-icon>Clear
             </v-btn>
-            <v-spacer/>
+            <v-spacer />
             <v-btn
               @click="addFacility()"
               :disabled="$v.$invalid || active.length === 0"
               class="white--text"
               color="deep-purple accent-4"
-              depressed><v-icon left>how_to_reg</v-icon>Add</v-btn>
+              depressed
+            >
+              <v-icon left>how_to_reg</v-icon>Add
+            </v-btn>
           </v-card-actions>
         </v-card>
       </v-flex>
-      <v-spacer/>
+      <v-spacer />
     </v-layout>
   </v-container>
 </template>
 <script>
 import axios from 'axios'
 import { required } from 'vuelidate/lib/validators'
+import { generalMixin } from '@/generalMixin'
 
 const backendServer = process.env.VUE_APP_BACKEND_SERVER
 
 export default {
+  mixins: [generalMixin],
   validations: {
     name: { required }
   },
@@ -137,18 +149,6 @@ export default {
         this.alertMsg = 'This facility was not added, ensure name is not used'
         console.log(err.response.data.error)
       })
-    },
-    getLocation (item) {
-      let query
-      if(!item.typeTag) {
-        query = '?type=&checkChild=' + false + '&lastLocationType=district'
-      } else{
-        query = '?type=' + item.typeTag + '&checkChild=' + false + '&id=' + item.id + '&lastLocationType=district'
-      }
-      axios.get(backendServer + '/locationTree' + query).then ((data) => {
-        item.children.push(...data.data)
-        return item;
-      })
     }
   },
   computed: {
@@ -166,6 +166,9 @@ export default {
         }
       ]
     }
+  },
+  created () {
+    this.lastLocationType = 'district'
   }
 }
 </script>
