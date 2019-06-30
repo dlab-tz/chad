@@ -92,7 +92,6 @@ app.use(bodyParser.json());
 app.use('/', guiRouter)
 
 app.all('/test', (req, res) => {
-  winston.error('here')
   let submission = req.body
   mongo.saveSubmission(submission)
 })
@@ -249,6 +248,7 @@ app.post('/newSubmission', (req, res) => {
   let householdFormID = config.getConf("aggregator:householdForm:id")
   let householdFormName = config.getConf("aggregator:householdForm:name")
   let submission = req.body
+  mongo.saveSubmission(submission)
   // populate any new house/ pregnant woman as a choice
   aggregator.downloadXLSForm(householdFormID, householdFormName, (err) => {
     getWorkbook(__dirname + '/' + householdFormName + '.xlsx', (chadWorkbook) => {

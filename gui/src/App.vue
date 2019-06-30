@@ -259,7 +259,7 @@ export default {
   components: {},
   data () {
     return {
-      title: "CHAD",
+      title: "CHAID",
       fixed: false
     };
   },

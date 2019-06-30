@@ -2,6 +2,7 @@ require('./init')
 const moment = require('moment')
 const mongoose = require('mongoose')
 const Schema = mongoose.Schema;
+const deepmerge = require('deepmerge')
 const winston = require('winston')
 const async = require('async')
 const aggregator = require('./aggregator')
@@ -153,6 +154,7 @@ module.exports = function () {
       })
     },
     saveSubmission(submission) {
+      let saveSubmission = {}
       if (mongoUser && mongoPasswd) {
         var uri = `mongodb://${mongoUser}:${mongoPasswd}@${mongoHost}:${mongoPort}/${database}`;
       } else {
@@ -162,22 +164,59 @@ module.exports = function () {
       let schemaFields = {}
       aggregator.downloadJSONForm(householdFormID, (err, householdForm) => {
         householdForm = JSON.parse(householdForm)
-        async.each(submission.children, (field, nxtField) => {
+        async.each(householdForm.children, (field, nxtField) => {
           getFormField(field, schemaFields, () => {
             return nxtField()
           })
         }, () => {
-          winston.error(JSON.stringify(schemaFields))
-          let submissionSchema = new mongoose.Schema(schemaFields)
-          let SubmissionModel = mongoose.model('Submissions', submissionSchema)
-          let newSubmission = new SubmissionModel()
-          newSubmission.start = '2019-06-10'
-          newSubmission.username = 'ashaban'
-          mongoose.connect(uri, {}, () => {
-            newSubmission.save()
+          cleanKeys(submission, saveSubmission, () => {
+            async.eachOf(saveSubmission, (submittedData, key, nxtData) => {
+              if (!schemaFields.hasOwnProperty(key)) {
+                delete saveSubmission[key]
+              }
+              return nxtData()
+            }, () => {
+              let submissionSchema = new mongoose.Schema(schemaFields)
+              let SubmissionModel = mongoose.model('Submissions', submissionSchema)
+              let newSubmission = new SubmissionModel(saveSubmission)
+              mongoose.connect(uri, {}, () => {
+                newSubmission.save()
+              })
+            })
           })
         })
       })
+
+      function cleanKeys(data, saveSubmission, callback) {
+        if (Array.isArray(data)) {
+          async.eachOf(data, (dt, key, nxtDt) => {
+            saveSubmission[key] = {}
+            cleanKeys(dt, saveSubmission[key], () => {
+              return nxtDt()
+            })
+          }, () => {
+            return callback()
+          })
+        } else {
+          async.eachOf(data, (dt, key, nxtDt) => {
+            if (Array.isArray(dt)) {
+              let key1 = key.split('/').pop()
+              saveSubmission[key1] = []
+              data[key1] = deepmerge.all([data[key]])
+              //delete data[key]
+              cleanKeys(data[key1], saveSubmission[key1], () => {
+                return nxtDt()
+              })
+            } else {
+              key = key.split('/').pop()
+              saveSubmission[key] = dt
+              return nxtDt()
+            }
+          }, () => {
+            return callback()
+          })
+        }
+      }
     },
     addPregnantWoman(house, fullName, age, last_clin_vis, last_menstrual, cha_username) {
       if (mongoUser && mongoPasswd) {

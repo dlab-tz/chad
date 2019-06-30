@@ -18,7 +18,7 @@
     "level": "info"
   },
   "aggregator": {
-    "host": "http://localhost:8000",
+    "host": "http://192.168.43.241:8000",
     "user": "ashaban",
     "password": "xxxxx",
     "token": "152e90e0acb7a574ee64504dff11211f96cc4fe6",
