@@ -303,11 +303,12 @@ module.exports = function () {
       }
       const mongoose = require('mongoose')
       mongoose.connect(uri, {}, () => {
-        models.HFSModel.find(query, (err, data) => {
+        models.HFSModel.find(query).populate('facility').lean().exec({}, (err, data) => {
           if (err) {
-            return callback(err);
+            winston.error(err);
+            return callback('Unexpected error occured,please retry');
           }
-          return callback(false, data)
+          callback(err, data);
         });
       })
     },

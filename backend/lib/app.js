@@ -600,7 +600,7 @@ app.get('/syncContacts', (req, res) => {
             "fields": {
               "chadid": cha._id,
               "category": "HFS",
-              "facility": cha.facility
+              "facility": cha.facility._id
             }
           }
           rapidpro.addContact(contact, (err, newContact) => {

@@ -290,7 +290,7 @@ export default {
       })
     },
     editCHA (cha) {
-      this.village = {}
+      this.cha = {}
       this.cha = deepmerge.all([cha])
       this.editDialog = true
       for (let cha in this.cha) {

@@ -161,6 +161,18 @@ router.get('/getCHAById/:id?', (req, res) => {
   })
 })
 
+router.get('/getHFSById/:id?', (req, res) => {
+  winston.info("Received a request to get HFS by ID")
+  let id = req.params.id
+  mongo.getHFS(id, (err, data) => {
+    if (err) {
+      return res.status(500).send()
+    }
+    data = JSON.parse(JSON.stringify(data))
+    res.status(200).json(data)
+  })
+})
+
 router.post('/editLocation', (req, res) => {
   winston.info("Received a request to edit location")
   const form = new formidable.IncomingForm();
@@ -483,6 +495,9 @@ router.post('/addCHA', (req, res) => {
           })
         } else {
           let urns = ["tel:+255" + fields.phone1.substring(1)]
+          if (fields.phone2 && fields.phone2.length === 10 && /^\d+$/.test(fields.phone2.substring(1))) {
+            urns.push("tel:+255" + fields.phone2.substring(1))
+          }
           let contact = {
             "name": fields.firstName + " " + fields.otherName + " " + fields.surname,
             "urns": urns,
@@ -550,8 +565,12 @@ router.post('/editCHA', (req, res) => {
             id: data._id
           })
           let urns = ["tel:+255" + fields.cha.phone1.substring(1)]
+          if (fields.cha.phone2 && fields.cha.phone2.length === 10 && /^\d+$/.test(fields.cha.phone2.substring(1))) {
+            urns.push("tel:+255" + fields.cha.phone2.substring(1))
+          }
           let contact = {
-            "name": fields.firstName + " " + fields.cha.otherName + " " + fields.cha.surname,
+            "name": fields.cha.firstName + " " + fields.cha.otherName + " " + fields.cha.surname,
+            "uuid": fields.cha.rapidproId,
             "urns": urns,
             "fields": {
               "chadid": data._id,
@@ -561,7 +580,73 @@ router.post('/editCHA', (req, res) => {
           }
           rapidpro.addContact(contact, (err, newContact) => {
             if (!err) {
-              mongo.updateCHARapidproId(newContact.fields.cha._id, newContact.uuid, () => {
+              mongo.updateCHARapidproId(fields.cha._id, newContact.uuid, () => {
+
+              })
+            }
+          })
+        }
+      })
+    })
+  })
+})
+
+router.post('/editHFS', (req, res) => {
+  const form = new formidable.IncomingForm();
+  form.parse(req, (err, fields, files) => {
+    fields.hfs = JSON.parse(fields.hfs)
+    winston.info("Received a request to update] a HFS")
+    if (mongoUser && mongoPasswd) {
+      var uri = `mongodb://${mongoUser}:${mongoPasswd}@${mongoHost}:${mongoPort}/${database}`;
+    } else {
+      var uri = `mongodb://${mongoHost}:${mongoPort}/${database}`;
+    }
+    if (!fields.hfs.phone2) {
+      fields.hfs.phone2 = null
+    }
+    if (!fields.otherName) {
+      fields.otherName = null
+    }
+    winston.error(JSON.stringify(fields.hfs))
+    mongoose.connect(uri, {}, () => {
+      let updates = {
+        firstName: fields.hfs.firstName,
+        otherName: fields.hfs.otherName,
+        surname: fields.hfs.surname,
+        email: fields.hfs.email,
+        phone1: fields.hfs.phone1,
+        phone2: fields.hfs.phone2,
+        facility: fields.hfs.facility._id
+      }
+      mongoose.set('useFindAndModify', false)
+      winston.error(fields.hfs._id)
+      models.HFSModel.findByIdAndUpdate(fields.hfs._id, updates, (err, data) => {
+        if (err) {
+          winston.error(err)
+          res.status(500).json({
+            error: "Internal error occured"
+          })
+        } else {
+          res.status(200).json({
+            id: data._id
+          })
+          let urns = ["tel:+255" + fields.hfs.phone1.substring(1)]
+          if (fields.hfs.phone2 && fields.hfs.phone2.length === 10 && /^\d+$/.test(fields.hfs.phone2.substring(1))) {
+            urns.push("tel:+255" + fields.hfs.phone2.substring(1))
+          }
+          let contact = {
+            "name": fields.hfs.firstName + " " + fields.hfs.otherName + " " + fields.hfs.surname,
+            "uuid": fields.hfs.rapidproId,
+            "urns": urns,
+            "fields": {
+              "hfsdid": data._id,
+              "category": "hfs",
+              "facility": fields.hfs.facility._id
+            }
+          }
+          rapidpro.addContact(contact, (err, newContact) => {
+            if (!err) {
+              mongo.updatehfsRapidproId(fields.hfs._id, newContact.uuid, () => {
 
               })
             }

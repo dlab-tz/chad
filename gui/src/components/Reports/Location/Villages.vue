@@ -69,7 +69,7 @@
                 v-model="village.name"
                 label="Name"
               ></v-text-field>
-              District {{village.parent.name}}
+              Facility {{village.parent.name}}
               <v-treeview
                 :active.sync="active"
                 :open.sync="open"
@@ -281,7 +281,6 @@ export default {
       this.village.parent.name = newValue[0].name
       this.village.parent.parent = newValue[0].parent
       this.village.parent._id = newValue[0].id
-
     }
   },
   created () {
