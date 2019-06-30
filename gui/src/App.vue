@@ -1,7 +1,7 @@
 <template>
   <v-app>
     <v-toolbar
-      color="primary"
+      color="indigo"
       dark
       app
     >
@@ -110,7 +110,7 @@
               v-if="$store.state.auth.role === 'Admin'"
             >
               <v-list-tile-title>
-                <v-icon>add</v-icon>Facilities
+                <v-icon>list</v-icon>Facilities
               </v-list-tile-title>
             </v-list-tile>
             <v-list-tile
@@ -243,7 +243,7 @@
     </v-content>
     <v-footer
       dark
-      color="primary"
+      color="indigo"
       :fixed="fixed"
       app
     > </v-footer>
