@@ -186,7 +186,7 @@
       </v-alert>
       <center>
         <v-flex>
-          List of CHAs {{editDialog}}
+          List of HFSs {{editDialog}}
           <v-data-table
             :headers="headers"
             :items="hfss"
