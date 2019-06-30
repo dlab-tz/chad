@@ -186,7 +186,7 @@
       </v-alert>
       <center>
         <v-flex>
-          List of HFSs {{editDialog}}
+          List of HFSs
           <v-data-table
             :headers="headers"
             :items="hfss"
