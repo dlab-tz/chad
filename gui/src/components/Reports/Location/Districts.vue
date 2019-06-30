@@ -126,7 +126,24 @@
       </v-alert>
       <center>
         <v-flex>
-          List of district
+          <v-layout
+            row
+            wrap
+          >
+            <v-flex xs6>
+              List of districts
+            </v-flex>
+            <v-flex xs3>
+              <v-text-field
+                v-model="searchDistrict"
+                append-icon="search"
+                label="Search"
+                single-line
+                hide-details
+                color="primary"
+              />
+            </v-flex>
+          </v-layout>
           <v-data-table
             :headers="headers"
             :items="districts"
@@ -135,6 +152,7 @@
             item-key="_id"
             :loading="loading"
             style="width:600px"
+            :search="searchDistrict"
           >
             <tr
               :key="props.item._id"
@@ -174,6 +192,7 @@ const backendServer = process.env.VUE_APP_BACKEND_SERVER
 export default {
   data () {
     return {
+      searchDistrict: '',
       deleteDialog: false,
       alertSuccess: false,
       alertFail: false,

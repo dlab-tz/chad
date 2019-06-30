@@ -138,7 +138,24 @@
       </v-alert>
       <center>
         <v-flex>
-          List of facilities
+          <v-layout
+            row
+            wrap
+          >
+            <v-flex xs6>
+              List of facilities
+            </v-flex>
+            <v-flex xs3>
+              <v-text-field
+                v-model="searchFacility"
+                append-icon="search"
+                label="Search"
+                single-line
+                hide-details
+                color="primary"
+              />
+            </v-flex>
+          </v-layout>
           <v-data-table
             :headers="headers"
             :items="facilities"
@@ -147,6 +164,7 @@
             item-key="_id"
             :loading="loading"
             style="width:630px"
+            :search="searchFacility"
           >
             <tr
               :key="props.item._id"
@@ -188,6 +206,7 @@ export default {
   mixins: [generalMixin],
   data () {
     return {
+      searchFacility: '',
       deleteDialog: false,
       alertSuccess: false,
       alertFail: false,

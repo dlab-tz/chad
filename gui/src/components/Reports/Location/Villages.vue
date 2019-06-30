@@ -138,7 +138,24 @@
       </v-alert>
       <center>
         <v-flex>
-          List of villages
+          <v-layout
+            row
+            wrap
+          >
+            <v-flex xs6>
+              List of villages
+            </v-flex>
+            <v-flex xs3>
+              <v-text-field
+                v-model="searchVillage"
+                append-icon="search"
+                label="Search"
+                single-line
+                hide-details
+                color="primary"
+              />
+            </v-flex>
+          </v-layout>
           <v-data-table
             :headers="headers"
             :items="villages"
@@ -147,6 +164,7 @@
             item-key="_id"
             :loading="loading"
             style="width:600px"
+            :search="searchVillage"
           >
             <tr
               :key="props.item._id"
@@ -189,6 +207,7 @@ export default {
   mixins: [generalMixin],
   data () {
     return {
+      searchVillage: '',
       deleteDialog: false,
       alertSuccess: false,
       alertFail: false,

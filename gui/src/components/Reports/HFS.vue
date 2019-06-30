@@ -186,7 +186,24 @@
       </v-alert>
       <center>
         <v-flex>
-          List of HFSs
+          <v-layout
+            row
+            wrap
+          >
+            <v-flex xs7>
+              List of HFSs
+            </v-flex>
+            <v-flex xs5>
+              <v-text-field
+                v-model="searchHFS"
+                append-icon="search"
+                label="Search"
+                single-line
+                hide-details
+                color="primary"
+              />
+            </v-flex>
+          </v-layout>
           <v-data-table
             :headers="headers"
             :items="hfss"
@@ -194,6 +211,7 @@
             pagination.sync="pagination"
             item-key="_id"
             :loading="loading"
+            :search="searchHFS"
           >
             <tr
               :key="props.item._id"
@@ -246,6 +264,7 @@ export default {
   },
   data () {
     return {
+      searchHFS: '',
       active: [],
       open: [],
       tree: [],

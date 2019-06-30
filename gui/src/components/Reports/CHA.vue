@@ -186,7 +186,24 @@
       </v-alert>
       <center>
         <v-flex>
-          List of CHAs
+          <v-layout
+            row
+            wrap
+          >
+            <v-flex xs7>
+              List of CHAs
+            </v-flex>
+            <v-flex xs5>
+              <v-text-field
+                v-model="searchCHA"
+                append-icon="search"
+                label="Search"
+                single-line
+                hide-details
+                color="primary"
+              />
+            </v-flex>
+          </v-layout>
           <v-data-table
             :headers="headers"
             :items="chas"
@@ -194,6 +211,7 @@
             pagination.sync="pagination"
             item-key="_id"
             :loading="loading"
+            :search="searchCHA"
           >
             <tr
               :key="props.item._id"
@@ -247,6 +265,7 @@ export default {
   },
   data () {
     return {
+      searchCHA: '',
       active: [],
       open: [],
       tree: [],
