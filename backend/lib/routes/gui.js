@@ -362,6 +362,8 @@ router.post('/addRegion', (req, res) => {
           res.status(200).json({
             id: data._id
           })
+          data = JSON.parse(JSON.stringify(data))
+          aggregator.addLocationToXLSForm(data._id, fields.name, '', 'regions', () => {})
         }
       })
     })
@@ -393,6 +395,8 @@ router.post('/addDistrict', (req, res) => {
           res.status(200).json({
             id: data._id
           })
+          data = JSON.parse(JSON.stringify(data))
+          aggregator.addLocationToXLSForm(data._id, fields.name, fields.parent, 'districts', () => {})
         }
       })
     })
@@ -454,6 +458,14 @@ router.post('/addVillage', (req, res) => {
           winston.info("Village saved successfully")
           res.status(200).json({
             id: data._id
+          })
+          data = JSON.parse(JSON.stringify(data))
+          let villageId = data._id
+          mongo.getVillages(data._id, (err, data) => {
+            if (data) {
+              data = JSON.parse(JSON.stringify(data))
+              aggregator.addLocationToXLSForm(villageId, fields.name, data[0].parent.parent, 'villages', () => {})
+            }
           })
         }
       })
@@ -728,29 +740,42 @@ router.post('/addHFS', (req, res) => {
   })
 })
 
-router.get('/location/:type', (req, res) => {
-  let model = req.params.type + 'Model'
-  let id = req.query.id
-  let query
-  if (id) {
-    query = {
-      id: id
+router.get('/getSubmissions', (req, res) => {
+    let startDate = req.query.startDate
+    let endDate = req.query.endDate
+    winston.info("Receved request to get submission data")
+    mongo.getSubmissions(startDate, endDate, (err, data) => {
+      if (err) {
+        res.status(500).send()
+      } else {
+        res.status(200).json(data)
+      }
+    })
+  }),
+
+  router.get('/location/:type', (req, res) => {
+    let model = req.params.type + 'Model'
+    let id = req.query.id
+    let query
+    if (id) {
+      query = {
+        id: id
+      }
+    } else {
+      query = {}
     }
-  } else {
-    query = {}
-  }
-  if (mongoUser && mongoPasswd) {
-    var uri = `mongodb://${mongoUser}:${mongoPasswd}@${mongoHost}:${mongoPort}/${database}`;
-  } else {
-    var uri = `mongodb://${mongoHost}:${mongoPort}/${database}`;
-  }
-  mongoose.connect(uri, {}, () => {
-    models[model].find(query, (err, data) => {
-      data = JSON.parse(JSON.stringify(data))
-      res.status(200).json(data)
+    if (mongoUser && mongoPasswd) {
+      var uri = `mongodb://${mongoUser}:${mongoPasswd}@${mongoHost}:${mongoPort}/${database}`;
+    } else {
+      var uri = `mongodb://${mongoHost}:${mongoPort}/${database}`;
+    }
+    mongoose.connect(uri, {}, () => {
+      models[model].find(query, (err, data) => {
+        data = JSON.parse(JSON.stringify(data))
+        res.status(200).json(data)
+      })
     })
   })
-})
 
 router.get('/locationTree', (req, res) => {
   let id = req.query.id

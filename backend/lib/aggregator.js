@@ -2,6 +2,7 @@ require('./init')
 const request = require("request")
 const winston = require('winston')
 const config = require('./config')
+const mixin = require('./mixin')
 const URI = require('urijs')
 const fs = require('fs')
 
@@ -15,11 +16,40 @@ const publishForm = (formId, formName, callback) => {
       Authorization: `Token ${token}`
     },
     formData: {
-      xls_file: fs.createReadStream(__dirname + '/' + formName + '.xlsx')
+      xls_file: fs.createReadStream(__dirname + '/household_visit1.xlsx')
     }
   }
   request.patch(options, (err, res, body) => {
     return callback()
+  })
+}
+
+const addLocationToXLSForm = (id, name, parent, type, callback) => {
+  let householdFormID = config.getConf("aggregator:householdForm:id")
+  let householdFormName = config.getConf("aggregator:householdForm:name")
+  downloadXLSForm(householdFormID, householdFormName, (err) => {
+    mixin.getWorkbook(__dirname + '/' + householdFormName + '.xlsx', (chadWorkbook) => {
+      let chadChoicesWorksheet = chadWorkbook.getWorksheet('choices')
+      let lastRow = chadChoicesWorksheet.lastRow
+      let getRowInsert = chadChoicesWorksheet.getRow(++(lastRow.number))
+      if (!parent) {
+        parent = ''
+      }
+      getRowInsert.getCell(1).value = type
+      getRowInsert.getCell(2).value = id
+      getRowInsert.getCell(3).value = name
+      getRowInsert.getCell(4).value = name
+      getRowInsert.getCell(5).value = parent
+      getRowInsert.commit()
+      winston.info('writting new house into local household_visit XLSForm')
+      chadWorkbook.xlsx.writeFile(__dirname + '/' + householdFormName + '.xlsx').then(() => {
+        winston.info('Updating the online CHAD XLSForm with the local household XLSForm')
+        publishForm(householdFormID, householdFormName, () => {
+          winston.info('Online household XLSForm Updated')
+          return callback()
+        })
+      })
+    })
   })
 }
 
@@ -42,10 +72,10 @@ const downloadXLSForm = (formId, formName, callback) => {
     })
     .pipe(fs.createWriteStream(__dirname + '/' + formName + '.xlsx'))
 
-    status.on('finish', () => {
-      winston.info("Finished downloading XLSForm in XLS Format")
-      return callback(false)
-    })
+  status.on('finish', () => {
+    winston.info("Finished downloading XLSForm in XLS Format")
+    return callback(false)
+  })
 }
 
 const downloadJSONForm = (formId, callback) => {
@@ -63,7 +93,7 @@ const downloadJSONForm = (formId, callback) => {
   }
   request.get(options, (err, res, body) => {
     winston.info("Finished downloading XLSForm in JSON Format")
-    if(err) {
+    if (err) {
       winston.error(err)
     }
     return callback(err, body)
@@ -84,7 +114,7 @@ const downloadFormData = (formId, callback) => {
   }
   winston.info('fetching data from aggregator')
   request.get(options, (err, reslts, formData) => {
-    if(err) {
+    if (err) {
       winston.error(err)
     }
     return callback(err, formData)
@@ -97,7 +127,8 @@ const populateHouses = (chadChoicesWorksheet, house_name, house_number, village,
   getRowInsert.getCell(1).value = 'house_name'
   getRowInsert.getCell(2).value = house_number
   getRowInsert.getCell(3).value = house_name + ' - ' + house_number
-  getRowInsert.getCell(4).value = village
+  getRowInsert.getCell(4).value = house_name + ' - ' + house_number
+  getRowInsert.getCell(5).value = village
   getRowInsert.commit()
   return callback(false)
 }
@@ -108,7 +139,8 @@ const populatePregnantWomen = (chadChoicesWorksheet, pregnant_wom_name, pregnant
   getRowInsert.getCell(1).value = 'pregnant_women'
   getRowInsert.getCell(2).value = pregnant_wom_name + ' - ' + pregnant_wom_age + ' - ' + house_number
   getRowInsert.getCell(3).value = pregnant_wom_name + ' - ' + pregnant_wom_age + ' - ' + house_number
-  getRowInsert.getCell(4).value = house_number
+  getRowInsert.getCell(4).value = pregnant_wom_name + ' - ' + pregnant_wom_age + ' - ' + house_number
+  getRowInsert.getCell(5).value = house_number
   getRowInsert.commit()
   return callback(false)
 }
@@ -163,6 +195,7 @@ const shareFormWithUser = (formId, username, callback) => {
 }
 
 module.exports = {
+  addLocationToXLSForm,
   publishForm,
   downloadXLSForm,
   downloadJSONForm,

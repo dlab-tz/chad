@@ -1,10 +1,10 @@
-require('./init');
+require('./init')
+require('./clone')
+require('./connection')
 const express = require('express')
 const winston = require('winston')
 const async = require('async')
-const Excel = require('exceljs')
 const mongoose = require('mongoose')
-const moment = require('moment')
 const bcrypt = require('bcrypt')
 const jwt = require('jsonwebtoken')
 const cors = require('cors');
@@ -16,27 +16,14 @@ const rapidpro = require('./rapidpro')
 const config = require('./config')
 const models = require('./models')
 const mongo = require('./mongo')()
-require('./clone')
 const port = config.getConf('server:port')
-const mongoUser = config.getConf("DB_USER")
-const mongoPasswd = config.getConf("DB_PASSWORD")
-const mongoHost = config.getConf("DB_HOST")
-const mongoPort = config.getConf("DB_PORT")
-const database = config.getConf("DB_NAME")
-
-let mongoURI
-if (mongoUser && mongoPasswd) {
-  mongoURI = `mongodb://${mongoUser}:${mongoPasswd}@${mongoHost}:${mongoPort}/${database}`;
-} else {
-  mongoURI = `mongodb://${mongoHost}:${mongoPort}/${database}`;
-}
 
 const app = express()
 
 let jwtValidator = function (req, res, next) {
   if (req.method == "OPTIONS" ||
     req.path == "/authenticate/" ||
-    req.path == "/test" ||
+    req.path == "/syncLocations" ||
     req.path == "/newSubmission" ||
     req.path == "/clinicReminder" ||
     req.path == "/" ||
@@ -91,156 +78,6 @@ app.use(bodyParser.urlencoded({
 app.use(bodyParser.json());
 app.use('/', guiRouter)
 
-app.all('/test', (req, res) => {
-  let submission = req.body
-  mongo.saveSubmission(submission)
-})
-
-app.all('/populateData', (req, res) => {
-  let householdFormID = config.getConf("aggregator:householdForm:id")
-  let householdFormName = config.getConf("aggregator:householdForm:name")
-  winston.info("Received a request to update houses in XLSForm")
-  aggregator.downloadXLSForm(householdFormID, householdFormName, (err) => {
-    if (err) {
-      return res.status(500).send()
-    }
-    aggregator.downloadFormData(householdFormID, (err, formData) => {
-      try {
-        formData = JSON.parse(formData)
-      } catch (error) {
-        winston.error(error)
-        winston.error("invalid data returned by aggregator, stop updating villages")
-        return res.status(500).send()
-      }
-      getWorkbook(__dirname + '/' + householdFormName + '.xlsx', (chadWorkbook) => {
-        //loop through online aggregator formData and compare against
-        async.each(formData, (data, nxt) => {
-          let keys = Object.keys(data)
-          let pregnant_wom_name, pregnant_wom_age, pregnant_wom_name_new, pregnant_wom_age_new
-          if (keys.includes('pregnant_woman_name_new')) {
-            pregnant_wom_name_new = data['pregnant_woman_name_new']
-          } else {
-            let preg_name_key = getKeys(keys, 'pregnant_woman_name_new')
-            if (preg_name_key) {
-              pregnant_wom_name_new = data[preg_name_key]
-            }
-          }
-          if (keys.includes('pregnant_woman_name')) {
-            pregnant_wom_name = data['pregnant_woman_name']
-          } else {
-            let preg_name_key = getKeys(keys, 'pregnant_woman_name')
-            if (preg_name_key) {
-              pregnant_wom_name = data[preg_name_key]
-            }
-          }
-          if (keys.includes('pregnant_woman_age_new')) {
-            pregnant_wom_age_new = data['pregnant_woman_age_new']
-          } else {
-            let preg_age_key = getKeys(keys, 'pregnant_woman_age_new')
-            if (preg_age_key) {
-              pregnant_wom_age_new = data[preg_age_key]
-            }
-          }
-          if (data.house_name != 'add_new' && pregnant_wom_name != 'add_new') {
-            return nxt()
-          }
-          let house_name = data.house_name_new
-          let house_number = data.house_number_new
-          if (data.house_name != 'add_new') {
-            house_number = data.house_name.split('-').pop()
-            house_name = data.house_name.split('-')[0]
-          }
-          let chadChoicesWorksheet = chadWorkbook.getWorksheet('choices')
-          let add_preg_woman, add_house
-          if (pregnant_wom_name == 'add_new') {
-            add_preg_woman = true
-          }
-          if (data.house_name == 'add_new') {
-            add_house = true
-          }
-          const chadPromises = []
-          chadChoicesWorksheet.eachRow((chadRows, chadRowNum) => {
-            chadPromises.push(new Promise((resolve, reject) => {
-              if (!chadRows.values.includes('house_name') && !chadRows.values.includes('pregnant_women')) {
-                return resolve()
-              }
-              if (chadRows.values.includes('house_name') && chadRows.values.includes(house_name + ' - ' + house_number)) {
-                add_house = false
-              }
-              let preg_wom_label = pregnant_wom_name_new + ' - ' + pregnant_wom_age_new + ' - ' + house_number
-              if (chadRows.values.includes('pregnant_women') && chadRows.values.includes(preg_wom_label)) {
-                add_preg_woman = false
-              }
-              return resolve()
-            }))
-          })
-          Promise.all(chadPromises).then(() => {
-            async.series({
-              house: (callback) => {
-                if (add_house) {
-                  let lastRow = chadChoicesWorksheet.lastRow
-                  let getRowInsert = chadChoicesWorksheet.getRow(++(lastRow.number))
-                  getRowInsert.getCell(1).value = 'house_name'
-                  getRowInsert.getCell(2).value = house_number
-                  getRowInsert.getCell(3).value = house_name + ' - ' + house_number
-                  getRowInsert.getCell(4).value = data['village']
-                  getRowInsert.commit()
-                  return callback(null, null)
-                } else {
-                  return callback(null, null)
-                }
-              },
-              preg_wom: (callback) => {
-                if (add_preg_woman) {
-                  let lastRow = chadChoicesWorksheet.lastRow
-                  let getRowInsert = chadChoicesWorksheet.getRow(++(lastRow.number))
-                  getRowInsert.getCell(1).value = 'pregnant_women'
-                  getRowInsert.getCell(2).value = pregnant_wom_name_new + ' - ' + pregnant_wom_age_new + ' - ' + house_number
-                  getRowInsert.getCell(3).value = pregnant_wom_name_new + ' - ' + pregnant_wom_age_new + ' - ' + house_number
-                  getRowInsert.getCell(4).value = house_number
-                  getRowInsert.commit()
-                  return callback(null, null)
-                } else {
-                  return callback(null, null)
-                }
-              }
-            }, (err, results) => {
-              return nxt()
-            })
-          }).catch((err) => {
-            winston.error(err)
-          })
-        }, () => {
-          winston.info('writting any changes into local household_visit XLSForm')
-          chadWorkbook.xlsx.writeFile(__dirname + '/' + householdFormName + '.xlsx').then(() => {
-            winston.info('Updating the online CHAD XLSForm with the local household XLSForm')
-            aggregator.publishForm(householdFormID, householdFormName, () => {
-              winston.info('Online household XLSForm Updated')
-              res.status(200).send()
-            })
-          })
-        })
-      })
-    })
-  })
-
-  function getKeys(keys, key_name) {
-    let key_found = keys.find((key) => {
-      return key.endsWith('/' + key_name)
-    })
-    return key_found
-  }
-
-  function getWorkbook(filename, callback) {
-    let workbook = new Excel.Workbook()
-    workbook.xlsx.readFile(filename).then(() => {
-      return callback(workbook)
-    }).catch((err) => {
-      console.log(err)
-    })
-  }
-})
-
 app.post('/newSubmission', (req, res) => {
   //acknowlodge recipient
   res.status(200).send()
@@ -251,10 +88,9 @@ app.post('/newSubmission', (req, res) => {
   mongo.saveSubmission(submission)
   // populate any new house/ pregnant woman as a choice
   aggregator.downloadXLSForm(householdFormID, householdFormName, (err) => {
-    getWorkbook(__dirname + '/' + householdFormName + '.xlsx', (chadWorkbook) => {
+    mixin.getWorkbook(__dirname + '/' + householdFormName + '.xlsx', (chadWorkbook) => {
       let chadChoicesWorksheet = chadWorkbook.getWorksheet('choices')
       let house_name = mixin.getDataFromJSON(submission, 'house_name')
-      let pregnant_woman_name = mixin.getDataFromJSON(submission, 'pregnant_woman_name')
       async.series({
         new_house: (callback) => {
           if (house_name == 'add_new') {
@@ -272,23 +108,28 @@ app.post('/newSubmission', (req, res) => {
           }
         },
         new_preg_wom: (callback) => {
-          if (pregnant_woman_name == 'add_new') {
-            let new_preg_woman_name = mixin.getDataFromJSON(submission, 'pregnant_woman_name_new')
-            let new_pregnant_woman_age = mixin.getDataFromJSON(submission, 'pregnant_woman_age_new')
-            let house_number
-            house_number = mixin.getDataFromJSON(submission, 'house_number_new')
-            if (!house_number) {
-              house_number = mixin.getDataFromJSON(submission, 'house_number')
-            }
-            aggregator.populatePregnantWomen(chadChoicesWorksheet, new_preg_woman_name, new_pregnant_woman_age, house_number, (err) => {
-              winston.info('writting new pregnant woman into local household_visit XLSForm')
-              chadWorkbook.xlsx.writeFile(__dirname + '/' + householdFormName + '.xlsx').then(() => {
-                return callback(false, false)
+          async.each(submission.rp_preg_woman, (preg_wom, nxtPregWom) => {
+            let pregnant_woman_name = mixin.getDataFromJSON(preg_wom, 'pregnant_woman_name')
+            if (pregnant_woman_name == 'add_new') {
+              let new_preg_woman_name = mixin.getDataFromJSON(preg_wom, 'pregnant_woman_name_new')
+              let new_pregnant_woman_age = mixin.getDataFromJSON(preg_wom, 'pregnant_woman_age_new')
+              let house_number
+              house_number = mixin.getDataFromJSON(submission, 'house_number_new')
+              if (!house_number) {
+                house_number = mixin.getDataFromJSON(submission, 'house_number')
+              }
+              aggregator.populatePregnantWomen(chadChoicesWorksheet, new_preg_woman_name, new_pregnant_woman_age, house_number, (err) => {
+                winston.info('writting new pregnant woman into local household_visit XLSForm')
+                chadWorkbook.xlsx.writeFile(__dirname + '/' + householdFormName + '.xlsx').then(() => {
+                  return nxtPregWom()
+                })
               })
-            })
-          } else {
+            } else {
+              return nxtPregWom()
+            }
+          }, () => {
             return callback(false, false)
-          }
+          })
         }
       }, () => {
         winston.info('Updating the online CHAD XLSForm with the local household XLSForm')
@@ -534,15 +375,6 @@ app.post('/newSubmission', (req, res) => {
       }
     })
   })
-
-  function getWorkbook(filename, callback) {
-    let workbook = new Excel.Workbook()
-    workbook.xlsx.readFile(filename).then(() => {
-      return callback(workbook)
-    }).catch((err) => {
-      console.log(err)
-    })
-  }
 })
 
 app.all('/clinicReminder', (req, res) => {
@@ -551,6 +383,59 @@ app.all('/clinicReminder', (req, res) => {
       res.status(500).send()
     } else {
       res.status(200).send()
+    }
+  })
+})
+
+app.get('/syncLocations', (req, res) => {
+  async.series({
+    regions: (callback) => {
+      mongo.getRegions('', (err, data) => {
+        if (data) {
+          data = JSON.parse(JSON.stringify(data))
+          async.eachSeries(data, (dt, nxtDt) => {
+            aggregator.addLocationToXLSForm(dt._id, dt.name, '', 'regions', () => {
+              return nxtDt()
+            })
+          }, () => {
+            return callback(false)
+          })
+        } else {
+          return callback(false)
+        }
+      })
+    },
+    districts: (callback) => {
+      mongo.getDistricts('', (err, data) => {
+        if (data) {
+          data = JSON.parse(JSON.stringify(data))
+          async.eachSeries(data, (dt, nxtDt) => {
+            aggregator.addLocationToXLSForm(dt._id, dt.name, dt.parent._id, 'districts', () => {
+              return nxtDt()
+            })
+          }, () => {
+            return callback(false)
+          })
+        } else {
+          return callback(false)
+        }
+      })
+    },
+    villages: (callback) => {
+      mongo.getVillages('', (err, data) => {
+        if (data) {
+          data = JSON.parse(JSON.stringify(data))
+          async.eachSeries(data, (dt, nxtDt) => {
+            aggregator.addLocationToXLSForm(dt._id, dt.name, dt.parent.parent, 'villages', () => {
+              return nxtDt()
+            })
+          }, () => {
+            return callback(false)
+          })
+        } else {
+          return callback(false)
+        }
+      })
     }
   })
 })
@@ -624,7 +509,6 @@ app.get('/syncContacts', (req, res) => {
 
 app.listen(port, () => {
   winston.info("Server is running and listening on port " + port)
-  mongoose.connect(mongoURI);
   let db = mongoose.connection
   db.on("error", console.error.bind(console, "connection error:"))
   db.once("open", () => {

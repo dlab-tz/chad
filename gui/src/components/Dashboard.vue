@@ -1,6 +1,9 @@
 <template>
   <v-container grid-list-xs>
-    <v-layout row wrap>
+    <v-layout
+      row
+      wrap
+    >
       <v-spacer></v-spacer>
       <v-flex xs2>
         <v-menu
@@ -22,7 +25,10 @@
               v-on="on"
             ></v-text-field>
           </template>
-          <v-date-picker v-model="startDate" @input="startDateMenu = false"></v-date-picker>
+          <v-date-picker
+            v-model="startDate"
+            @input="startDateMenu = false"
+          ></v-date-picker>
         </v-menu>
       </v-flex>
       <v-spacer></v-spacer>
@@ -46,19 +52,35 @@
               v-on="on"
             ></v-text-field>
           </template>
-          <v-date-picker v-model="endDate" @input="endDateMenu = false"></v-date-picker>
+          <v-date-picker
+            v-model="endDate"
+            @input="endDateMenu = false"
+          ></v-date-picker>
         </v-menu>
       </v-flex>
       <v-spacer></v-spacer>
       <v-flex xs2>
-        <v-btn color="primary" round @click="generate"><v-icon left>list</v-icon> Filter</v-btn>
+        <v-btn
+          color="primary"
+          round
+          @click="generate"
+        >
+          <v-icon left>list</v-icon> Filter
+        </v-btn>
       </v-flex>
       <v-spacer></v-spacer>
     </v-layout>
-    <v-layout row wrap>
-      <v-flex xs6 v-for='(chartOption, index) in chartOptions' :key='index'>
+    <v-layout
+      row
+      wrap
+    >
+      <v-flex
+        xs6
+        v-for='(chartOption, index) in chartOptions'
+        :key='index'
+      >
         {{chartOption.title.text}}
-        <v-chart :options="chartOption"/>
+        <v-chart :options="chartOption" />
       </v-flex>
     </v-layout>
     <v-data-table
@@ -81,21 +103,21 @@ import ECharts from 'vue-echarts'
 import 'echarts/lib/chart/pie'
 import 'echarts/lib/component/tooltip'
 import 'echarts/lib/component/legend'
-import { setTimeout } from 'timers';
 const aggreatorServer = process.env.VUE_APP_AGGREGATOR_SERVER
 const aggreatorToken = process.env.VUE_APP_AGGREGATOR_TOKEN
-const householdFormId = 11
+const householdFormId = process.env.VUE_APP_HOUSEHOLD_FORMID
+const backendServer = process.env.VUE_APP_BACKEND_SERVER
 export default {
   components: {
     'v-chart': ECharts
   },
-  data() {
+  data () {
     return {
       reportRows: [],
       reportHeader: [
         { text: "Village household mapping indicators", value: "Number" },
         { text: "Value", value: "value" },
-        ],
+      ],
       startDateMenu: false,
       endDateMenu: false,
       startDate: new Date('2019-05-01').toISOString().substr(0, 10),
@@ -113,12 +135,12 @@ export default {
     },
     createChartDefOpt () {
       let opt = {
-        title : {
+        title: {
           text: '',
           subtext: '',
-          x:'center'
+          x: 'center'
         },
-        tooltip : {
+        tooltip: {
           trigger: 'item',
           formatter: "{a} <br/>{b} : {c} ({d}%)"
         },
@@ -127,13 +149,13 @@ export default {
           left: 'left',
           data: []
         },
-        series : [{
+        series: [{
           name: '',
           type: 'pie',
-          radius : '30%',
+          radius: '30%',
           center: ['35%', '40%'],
           roseType: 'radius',
-          data:[],
+          data: [],
           animation: true,
           animationType: 'expansion',
           animationThreshold: 2000,
@@ -143,7 +165,7 @@ export default {
       }
       return opt
     },
-    generate() {
+    generate () {
       this.chartOptions = []
       let indicators = {
         total_households: {
@@ -207,30 +229,31 @@ export default {
       let startDay = startDate[2]
       let endDay = endDate[2]
       let query = `
-        date_created__year__gte=${startYear}&date_created__year__lte=${endYear}&`+
-        `date_created__month__gte=${startMonth}&date_created__month__lte=${endMonth}&`+
+        date_created__year__gte=${startYear}&date_created__year__lte=${endYear}&` +
+        `date_created__month__gte=${startMonth}&date_created__month__lte=${endMonth}&` +
         `date_created__day__gte=${startDay}&date_created__day__lte=${endDay}
       `
-      axios.get(aggreatorServer + `/api/v1/data/${householdFormId}?${query}`).then((households) => {
+      axios.get(backendServer + '/getSubmissions?startDate=' + this.startDate + '&endDate=' + this.endDate).then((households) => {
+        //axios.get(aggreatorServer + `/api/v1/data/${householdFormId}?${query}`).then((households) => {
         let total_households = 0, houses = []
-        for(let household of households.data) {
+        for (let household of households.data) {
           let house_name = this.getDataFromJSON(household, 'house_name')
-          if(house_name == 'add_new') {
+          if (house_name == 'add_new') {
             house_name = this.getDataFromJSON(household, 'house_name_new')
             let house_number = this.getDataFromJSON(household, 'house_number_new')
             house_name = house_name + " - " + house_number
             let exists = houses.find((house) => {
               return house === house_name
             })
-            if(!exists) {
+            if (!exists) {
               total_households++
               houses.push(house_name)
             }
           }
 
-          for(let indicator in indicators) {
+          for (let indicator in indicators) {
             let value = this.getDataFromJSON(household, indicators[indicator].key)
-            if(value) {
+            if (value) {
               indicators[indicator].value += value
             }
           }
@@ -382,19 +405,19 @@ export default {
       })
 
       this.reportRows = []
-      for(let indicator in indicators) {
+      for (let indicator in indicators) {
         this.reportRows.push(indicators[indicator])
       }
     },
     getDataFromJSON (json, json_key) {
       let keys = Object.keys(json)
-      if(json.hasOwnProperty(json_key)) {
+      if (json.hasOwnProperty(json_key)) {
         return json[json_key]
       } else {
         let key_found = keys.find((key) => {
           return key.endsWith('/' + json_key)
         })
-        if(key_found) {
+        if (key_found) {
           return json[key_found]
         } else {
           return false
@@ -418,7 +441,7 @@ export default {
       return `${day}/${month}/${year}`
     }
   },
-  created() {
+  created () {
     this.generate()
   }
 }

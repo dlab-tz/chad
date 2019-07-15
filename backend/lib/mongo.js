@@ -1,7 +1,7 @@
 require('./init')
+require('./connection')
 const moment = require('moment')
 const mongoose = require('mongoose')
-const Schema = mongoose.Schema;
 const deepmerge = require('deepmerge')
 const winston = require('winston')
 const async = require('async')
@@ -15,10 +15,11 @@ const mongoPasswd = config.getConf("DB_PASSWORD")
 const mongoHost = config.getConf("DB_HOST")
 const mongoPort = config.getConf("DB_PORT")
 
+let mongoURI
 if (mongoUser && mongoPasswd) {
-  var uri = `mongodb://${mongoUser}:${mongoPasswd}@${mongoHost}:${mongoPort}/${database}`;
+  mongoURI = `mongodb://${mongoUser}:${mongoPasswd}@${mongoHost}:${mongoPort}/${database}`;
 } else {
-  var uri = `mongodb://${mongoHost}:${mongoPort}/${database}`;
+  mongoURI = `mongodb://${mongoHost}:${mongoPort}/${database}`;
 }
 
 module.exports = function () {
@@ -84,20 +85,16 @@ module.exports = function () {
       });
     },
     updateRegion(id, name, callback) {
-      const mongoose = require('mongoose')
-      mongoose.connect(uri, {}, () => {
-        models.RegionsModel.findByIdAndUpdate(id, {
-          name: name
-        }, (err, data) => {
-          if (err) {
-            return callback(err);
-          }
-          return callback(false, data)
-        });
-      })
+      models.RegionsModel.findByIdAndUpdate(id, {
+        name: name
+      }, (err, data) => {
+        if (err) {
+          return callback(err);
+        }
+        return callback(false, data)
+      });
     },
     editLocation(id, name, type, parent, callback) {
-      const mongoose = require('mongoose')
       let updateQuery = {
         name: name
       }
@@ -105,63 +102,74 @@ module.exports = function () {
         updateQuery.parent = parent
       }
       let model = type + 'Model'
-      mongoose.connect(uri, {}, () => {
-        models[model].findByIdAndUpdate(id, updateQuery, (err, data) => {
-          if (err) {
-            return callback(err);
-          }
-          return callback(false, data)
-        });
-      })
+      models[model].findByIdAndUpdate(id, updateQuery, (err, data) => {
+        if (err) {
+          return callback(err);
+        }
+        return callback(false, data)
+      });
     },
     resetPassword(id, password, callback) {
-      const mongoose = require('mongoose')
-      mongoose.connect(uri, {}, () => {
-        models.UsersModel.findByIdAndUpdate(id, {
-          password: password
-        }, (err, data) => {
-          if (err) {
-            return callback(err);
-          }
-          return callback(false, data)
-        });
-      })
+      models.UsersModel.findByIdAndUpdate(id, {
+        password: password
+      }, (err, data) => {
+        if (err) {
+          return callback(err);
+        }
+        return callback(false, data)
+      });
     },
     updateCHARapidproId(chadid, uuid, callback) {
-      const mongoose = require('mongoose')
-      mongoose.connect(uri, {}, () => {
-        models.CHAModel.findByIdAndUpdate(chadid, {
-          rapidproId: uuid
-        }, (err, data) => {
-          if (err) {
-            return callback(err);
-          }
-          return callback(false, data)
-        });
-      })
+      models.CHAModel.findByIdAndUpdate(chadid, {
+        rapidproId: uuid
+      }, (err, data) => {
+        if (err) {
+          return callback(err);
+        }
+        return callback(false, data)
+      });
     },
     updateHFSRapidproId(chadid, uuid, callback) {
-      const mongoose = require('mongoose')
-      mongoose.connect(uri, {}, () => {
-        models.HFSModel.findByIdAndUpdate(chadid, {
-          rapidproId: uuid
-        }, (err, data) => {
-          if (err) {
-            return callback(err);
-          }
-          return callback(false, data)
+      models.HFSModel.findByIdAndUpdate(chadid, {
+        rapidproId: uuid
+      }, (err, data) => {
+        if (err) {
+          return callback(err);
+        }
+        return callback(false, data)
+      });
+    },
+    getSubmissions(startDate, endDate, callback) {
+      let filter = {}
+      if (startDate || endDate) {
+        filter.today = {
+          '$gte': startDate,
+          '$lte': endDate
+        }
+      }
+      this.generateSubmissionSchema((schemaFields) => {
+        let submissionSchema = new mongoose.Schema(schemaFields)
+        let connection = mongoose.createConnection(mongoURI, {
+          useNewUrlParser: true,
+        })
+        connection.on('error', () => {
+          winston.error(`An error occured while connecting to DB ${database}`);
         });
+        connection.once('open', () => {
+          const SubmissionModel = connection.model('Submissions', submissionSchema)
+          SubmissionModel.find(filter).lean().exec({}, (err, data) => {
+            if (err) {
+              winston.error(err)
+              return callback([])
+            }
+            return callback(false, JSON.parse(JSON.stringify(data)))
+          })
+        })
       })
     },
-    saveSubmission(submission) {
-      let saveSubmission = {}
-      if (mongoUser && mongoPasswd) {
-        var uri = `mongodb://${mongoUser}:${mongoPasswd}@${mongoHost}:${mongoPort}/${database}`;
-      } else {
-        var uri = `mongodb://${mongoHost}:${mongoPort}/${database}`;
-      }
-      let householdFormID = config.getConf("aggregator:householdForm:id")
+    generateSubmissionSchema(callback) {
       let schemaFields = {}
+      let householdFormID = config.getConf("aggregator:householdForm:id")
       aggregator.downloadJSONForm(householdFormID, (err, householdForm) => {
         householdForm = JSON.parse(householdForm)
         async.each(householdForm.children, (field, nxtField) => {
@@ -169,18 +177,35 @@ module.exports = function () {
             return nxtField()
           })
         }, () => {
-          cleanKeys(submission, saveSubmission, () => {
-            async.eachOf(saveSubmission, (submittedData, key, nxtData) => {
-              if (!schemaFields.hasOwnProperty(key)) {
-                delete saveSubmission[key]
-              }
-              return nxtData()
-            }, () => {
-              let submissionSchema = new mongoose.Schema(schemaFields)
-              let SubmissionModel = mongoose.model('Submissions', submissionSchema)
+          return callback(schemaFields)
+        })
+      })
+    },
+    saveSubmission(submission) {
+      let saveSubmission = {}
+      this.generateSubmissionSchema((schemaFields) => {
+        cleanKeys(submission, saveSubmission, () => {
+          async.eachOf(saveSubmission, (submittedData, key, nxtData) => {
+            if (!schemaFields.hasOwnProperty(key)) {
+              delete saveSubmission[key]
+            }
+            return nxtData()
+          }, () => {
+            let submissionSchema = new mongoose.Schema(schemaFields)
+            let connection = mongoose.createConnection(mongoURI, {
+              useNewUrlParser: true,
+            })
+            connection.on('error', () => {
+              winston.error(`An error occured while connecting to DB ${database}`);
+            });
+            connection.once('open', () => {
+              const SubmissionModel = connection.model('Submissions', submissionSchema)
               let newSubmission = new SubmissionModel(saveSubmission)
-              mongoose.connect(uri, {}, () => {
-                newSubmission.save()
+              newSubmission.save((err, data) => {
+                connection.close()
+                if (err) {
+                  winston.error(err)
+                }
               })
             })
           })
@@ -241,35 +266,28 @@ module.exports = function () {
         if (last_clin_vis) {
           nxt_clinic_alert = moment(last_clin_vis).add(1, "M").subtract("2", "days").format("YYYY-MM-DD")
         }
-        mongoose.connect(uri, {}, () => {
-          let PregnantWoman = new models.PregnantWomenModel({
-            house: house,
-            village: villageId,
-            fullName: fullName,
-            age: age,
-            nxtClinicAlert: nxt_clinic_alert,
-            expectedDeliveryDate: expected_delivery
-          })
-          PregnantWoman.save((err, data) => {
-            if (err) {
-              winston.error(err)
-              res.status(500).json({
-                error: "Internal error occured"
-              })
-            } else {
-              winston.info("Pregnant Woman saved successfully")
-              return
-            }
-          })
+        let PregnantWoman = new models.PregnantWomenModel({
+          house: house,
+          village: villageId,
+          fullName: fullName,
+          age: age,
+          nxtClinicAlert: nxt_clinic_alert,
+          expectedDeliveryDate: expected_delivery
+        })
+        PregnantWoman.save((err, data) => {
+          if (err) {
+            winston.error(err)
+            res.status(500).json({
+              error: "Internal error occured"
+            })
+          } else {
+            winston.info("Pregnant Woman saved successfully")
+            return
+          }
         })
       })
     },
     updatePregnantWoman(house, fullName, age, last_clin_vis, last_menstrual, cha_username) {
-      if (mongoUser && mongoPasswd) {
-        var uri = `mongodb://${mongoUser}:${mongoPasswd}@${mongoHost}:${mongoPort}/${database}`;
-      } else {
-        var uri = `mongodb://${mongoHost}:${mongoPort}/${database}`;
-      }
       this.getCHAByUsername(cha_username, (err, cha) => {
         if (err) {
           winston.error(err)
@@ -303,12 +321,10 @@ module.exports = function () {
               updateQuery.expectedDeliveryDate = expected_delivery
             }
             if (Object.keys(updateQuery).length > 0) {
-              mongoose.connect(uri, {}, () => {
-                models.PregnantWomenModel.findByIdAndUpdate(data[0]._id, updateQuery, (err, data) => {
-                  if (err) {
-                    winston.error(err)
-                  }
-                })
+              models.PregnantWomenModel.findByIdAndUpdate(data[0]._id, updateQuery, (err, data) => {
+                if (err) {
+                  winston.error(err)
+                }
               })
             }
           }
@@ -322,16 +338,13 @@ module.exports = function () {
           id
         }
       }
-      const mongoose = require('mongoose')
-      mongoose.connect(uri, {}, () => {
-        models.CHAModel.find(query).populate('village').lean().exec({}, (err, data) => {
-          if (err) {
-            winston.error(err);
-            return callback('Unexpected error occured,please retry');
-          }
-          callback(err, data);
-        });
-      })
+      models.CHAModel.find(query).populate('village').lean().exec({}, (err, data) => {
+        if (err) {
+          winston.error(err);
+          return callback('Unexpected error occured,please retry');
+        }
+        callback(err, data);
+      });
     },
     getHFS(facilityId, callback) {
       let query = {}
@@ -340,58 +353,46 @@ module.exports = function () {
           facility: facilityId
         }
       }
-      const mongoose = require('mongoose')
-      mongoose.connect(uri, {}, () => {
-        models.HFSModel.find(query).populate('facility').lean().exec({}, (err, data) => {
-          if (err) {
-            winston.error(err);
-            return callback('Unexpected error occured,please retry');
-          }
-          callback(err, data);
-        });
-      })
+      models.HFSModel.find(query).populate('facility').lean().exec({}, (err, data) => {
+        if (err) {
+          winston.error(err);
+          return callback('Unexpected error occured,please retry');
+        }
+        callback(err, data);
+      });
     },
     getCHAByUsername(username, callback) {
       let query = {
         odkUsername: username
       }
-      const mongoose = require('mongoose')
-      mongoose.connect(uri, {}, () => {
-        models.CHAModel.find(query, (err, data) => {
-          if (err) {
-            return callback(err);
-          }
-          return callback(false, data)
-        });
-      })
+      models.CHAModel.find(query, (err, data) => {
+        if (err) {
+          return callback(err);
+        }
+        return callback(false, data)
+      });
     },
     getCHAByVillage(villageId, callback) {
       let query = {
         village: villageId
       }
-      const mongoose = require('mongoose')
-      mongoose.connect(uri, {}, () => {
-        models.CHAModel.find(query, (err, data) => {
-          if (err) {
-            return callback(err);
-          }
-          return callback(false, data)
-        });
-      })
+      models.CHAModel.find(query, (err, data) => {
+        if (err) {
+          return callback(err);
+        }
+        return callback(false, data)
+      });
     },
     getFacilityFromVillage(villageId, callback) {
       let query = {
         _id: villageId
       }
-      const mongoose = require('mongoose')
-      mongoose.connect(uri, {}, () => {
-        models.VillagesModel.find(query, (err, data) => {
-          if (err) {
-            return callback(err);
-          }
-          return callback(false, data)
-        });
-      })
+      models.VillagesModel.find(query, (err, data) => {
+        if (err) {
+          return callback(err);
+        }
+        return callback(false, data)
+      });
     }
   }
 }

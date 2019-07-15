@@ -18,21 +18,13 @@
     "level": "info"
   },
   "aggregator": {
-    "host": "http://192.168.43.241:8000",
+    "host": "http://localhost:8000",
     "user": "ashaban",
     "password": "xxxxx",
-    "token": "152e90e0acb7a574ee64504dff11211f96cc4fe6",
-    "housesForm": {
-      "id": "406639",
-      "name": "Houses_Registration"
-    },
+    "token": "faba97475db86dfcf02c839eff9c41c234bcf261",
     "householdForm": {
-      "id": "11",
+      "id": "1",
       "name": "household_visit"
-    },
-    "chadForm": {
-      "id": "405278",
-      "name": "CHAD"
     }
   },
   "rapidpro": {
