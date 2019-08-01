@@ -42,7 +42,7 @@ sudo apt install npm
 `
 ## Building and running the frontend
 The frontend comes with built files that can be deployed on any web server ready for running the frontend, these files are under chad/gui/build, copy them to a web server to start running the frontend. 
-Follow below instructions if you want to rebuild the frontend
+Follow below instructions if you want to rebuild the frontend.<br>
 Switch to the gui directory with below commands
 
 ```sh
