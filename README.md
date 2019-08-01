@@ -34,7 +34,7 @@ Use below commands to start or stop mongo DB
 sudo systemctl stop mongod
 sudo systemctl restart mongod
 ```
-### Npm and Node Installation
+### npm and node Installation
 ```sh
 sudo apt install nodejs
 sudo apt install npm
