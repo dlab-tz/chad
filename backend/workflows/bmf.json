@@ -1,0 +1,204 @@
+{
+  "version": "13",
+  "site": "https://app.rapidpro.io",
+  "flows": [
+    {
+      "entry": "5ed32b80-4ace-45ba-833f-12f6b1bf38a1",
+      "action_sets": [
+        {
+          "uuid": "ab2f510e-d6cc-4b8e-9bc2-acb7ef772445",
+          "x": 509,
+          "y": 96,
+          "destination": null,
+          "actions": [
+            {
+              "type": "reply",
+              "uuid": "fb89bd8f-ee37-4d70-bc38-b650f9280c93",
+              "msg": {
+                "base": "The status you sent is not recognized, status can either be discharged or admitted. Please resend again in the format update referal_id status"
+              },
+              "media": {},
+              "quick_replies": [],
+              "send_all": false
+            }
+          ],
+          "exit_uuid": "9080ff51-0c60-4d60-830f-22db62f98682"
+        }
+      ],
+      "rule_sets": [
+        {
+          "uuid": "5ed32b80-4ace-45ba-833f-12f6b1bf38a1",
+          "x": 100,
+          "y": 0,
+          "label": "referal_update",
+          "rules": [
+            {
+              "uuid": "ab02e3af-093f-4e7e-8a8b-6ab69158f4c9",
+              "category": {
+                "base": "admitted"
+              },
+              "destination": "be33287b-1d25-4051-ad7a-a72869ceb0d3",
+              "destination_type": "R",
+              "test": {
+                "type": "contains_any",
+                "test": {
+                  "base": "admitted"
+                }
+              },
+              "label": null
+            },
+            {
+              "uuid": "30ea91c3-5cab-453b-b667-676d8e0c637d",
+              "category": {
+                "base": "admitted"
+              },
+              "destination": "be33287b-1d25-4051-ad7a-a72869ceb0d3",
+              "destination_type": "R",
+              "test": {
+                "type": "contains_any",
+                "test": {
+                  "base": "adm"
+                }
+              },
+              "label": null
+            },
+            {
+              "uuid": "719eb526-f895-4e41-a912-01c2ef2c96cd",
+              "category": {
+                "base": "admitted"
+              },
+              "destination": "be33287b-1d25-4051-ad7a-a72869ceb0d3",
+              "destination_type": "R",
+              "test": {
+                "type": "contains_any",
+                "test": {
+                  "base": "admited"
+                }
+              },
+              "label": null
+            },
+            {
+              "uuid": "1d679e46-2a93-42a4-a1c0-f69d97592a56",
+              "category": {
+                "base": "discharged"
+              },
+              "destination": "be33287b-1d25-4051-ad7a-a72869ceb0d3",
+              "destination_type": "R",
+              "test": {
+                "type": "contains_any",
+                "test": {
+                  "base": "discharged"
+                }
+              },
+              "label": null
+            },
+            {
+              "uuid": "6e0771cf-72ad-4113-96a9-0d3624e0bbc6",
+              "category": {
+                "base": "discharged"
+              },
+              "destination": "be33287b-1d25-4051-ad7a-a72869ceb0d3",
+              "destination_type": "R",
+              "test": {
+                "type": "contains_any",
+                "test": {
+                  "base": "discharge"
+                }
+              },
+              "label": null
+            },
+            {
+              "uuid": "b54b7deb-3f4a-4980-a517-c573d8834a1e",
+              "category": {
+                "base": "discharged"
+              },
+              "destination": "be33287b-1d25-4051-ad7a-a72869ceb0d3",
+              "destination_type": "R",
+              "test": {
+                "type": "contains_any",
+                "test": {
+                  "base": "disch"
+                }
+              },
+              "label": null
+            },
+            {
+              "uuid": "e9e214a6-8e3d-4847-bc3f-29c8ee37bad6",
+              "category": {
+                "base": "Other"
+              },
+              "destination": "ab2f510e-d6cc-4b8e-9bc2-acb7ef772445",
+              "destination_type": "A",
+              "test": {
+                "type": "true"
+              },
+              "label": null
+            }
+          ],
+          "finished_key": null,
+          "ruleset_type": "wait_message",
+          "response_type": "",
+          "operand": "@step.value",
+          "config": {}
+        },
+        {
+          "uuid": "be33287b-1d25-4051-ad7a-a72869ceb0d3",
+          "x": 193,
+          "y": 237,
+          "label": "submit_referal_update",
+          "rules": [
+            {
+              "uuid": "adf68f5a-24fc-4bd6-a05f-8c780552e7aa",
+              "category": {
+                "base": "Success"
+              },
+              "destination": null,
+              "destination_type": null,
+              "test": {
+                "type": "webhook_status",
+                "status": "success"
+              },
+              "label": null
+            },
+            {
+              "uuid": "e85d453f-bc70-45e8-830b-ecee0746e02d",
+              "category": {
+                "base": "Failure"
+              },
+              "destination": null,
+              "destination_type": null,
+              "test": {
+                "type": "webhook_status",
+                "status": "failure"
+              },
+              "label": null
+            }
+          ],
+          "finished_key": null,
+          "ruleset_type": "webhook",
+          "response_type": "",
+          "operand": "@step.value",
+          "config": {
+            "webhook": "http://localhost:3000/updateReferalStatus?referal_update=@flow.referal_update.text&status=@flow.referal_update.category&phone=@contact.tel_e164",
+            "webhook_action": "GET",
+            "webhook_headers": []
+          }
+        }
+      ],
+      "base_language": "base",
+      "flow_type": "M",
+      "version": "11.12",
+      "metadata": {
+        "uuid": "4f471731-45c5-4ccd-9fa0-748e43382eb4",
+        "name": "Update Referal Status",
+        "saved_on": "2019-08-11T16:19:40.483788Z",
+        "revision": 2,
+        "expires": 10080
+      }
+    }
+  ],
+  "campaigns": [],
+  "triggers": [],
+  "fields": [],
+  "groups": []
+}

@@ -18,6 +18,7 @@
     "cors": "^2.8.5",
     "exceljs": "^1.9.1",
     "express": "^4.16.4",
+    "forever-monitor": "^1.7.1",
     "formidable": "^1.2.1",
     "googleapis": "^39.2.0",
     "jsonwebtoken": "^8.5.1",
