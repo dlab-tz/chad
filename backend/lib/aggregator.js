@@ -16,10 +16,13 @@ const publishForm = (formId, formName, callback) => {
       Authorization: `Token ${token}`
     },
     formData: {
-      xls_file: fs.createReadStream(__dirname + '/household_visit1.xlsx')
+      xls_file: fs.createReadStream(__dirname + '/household_visit.xlsx')
     }
   }
   request.patch(options, (err, res, body) => {
+    if (err) {
+      winston.error(err)
+    }
     return callback()
   })
 }
@@ -166,6 +169,9 @@ const createAccount = (details, callback) => {
     json: true
   }
   request.post(options, (err, res, body) => {
+    if (err) {
+      winston.error(err)
+    }
     shareFormWithUser(formId, details.odkUsername, () => {
       return callback()
     })
@@ -188,8 +194,9 @@ const shareFormWithUser = (formId, username, callback) => {
     json: true
   }
   request.post(options, (err, res, body) => {
-    winston.error(body)
-    winston.error(err)
+    if (err) {
+      winston.error(err)
+    }
     return callback()
   })
 }

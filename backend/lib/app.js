@@ -8,14 +8,15 @@ const mongoose = require('mongoose')
 const bcrypt = require('bcrypt')
 const jwt = require('jsonwebtoken')
 const cors = require('cors');
-const bodyParser = require('body-parser');
+const bodyParser = require('body-parser')
+const shortid = require('shortid');
 var guiRouter = require('./routes/gui')
 const aggregator = require('./aggregator')
 const mixin = require('./mixin')
 const rapidpro = require('./rapidpro')
 const config = require('./config')
 const models = require('./models')
-const mongo = require('./mongo')()
+const mongo = require('./mongo')(rapidpro)
 const port = config.getConf('server:port')
 
 const app = express()
@@ -26,6 +27,7 @@ let jwtValidator = function (req, res, next) {
     req.path == "/syncLocations" ||
     req.path == "/newSubmission" ||
     req.path == "/clinicReminder" ||
+    req.path == "/updateReferalStatus" ||
     req.path == "/" ||
     req.path.startsWith("/static/js") ||
     req.path.startsWith("/static/css") ||
@@ -85,18 +87,17 @@ app.post('/newSubmission', (req, res) => {
   let householdFormID = config.getConf("aggregator:householdForm:id")
   let householdFormName = config.getConf("aggregator:householdForm:name")
   let submission = req.body
-  mongo.saveSubmission(submission)
   // populate any new house/ pregnant woman as a choice
   aggregator.downloadXLSForm(householdFormID, householdFormName, (err) => {
     mixin.getWorkbook(__dirname + '/' + householdFormName + '.xlsx', (chadWorkbook) => {
       let chadChoicesWorksheet = chadWorkbook.getWorksheet('choices')
-      let house_name = mixin.getDataFromJSON(submission, 'house_name')
+      let [house_name] = mixin.getDataFromJSON(submission, 'house_name')
       async.series({
         new_house: (callback) => {
           if (house_name == 'add_new') {
-            let new_house_name = mixin.getDataFromJSON(submission, 'house_name_new')
-            let new_house_number = mixin.getDataFromJSON(submission, 'house_number_new')
-            let village = mixin.getDataFromJSON(submission, 'village')
+            let [new_house_name] = mixin.getDataFromJSON(submission, 'house_name_new')
+            let [new_house_number] = mixin.getDataFromJSON(submission, 'house_number_new')
+            let [village] = mixin.getDataFromJSON(submission, 'village')
             aggregator.populateHouses(chadChoicesWorksheet, new_house_name, new_house_number, village, (err) => {
               winston.info('writting new house into local household_visit XLSForm')
               chadWorkbook.xlsx.writeFile(__dirname + '/' + householdFormName + '.xlsx').then(() => {
@@ -109,14 +110,13 @@ app.post('/newSubmission', (req, res) => {
         },
         new_preg_wom: (callback) => {
           async.each(submission.rp_preg_woman, (preg_wom, nxtPregWom) => {
-            let pregnant_woman_name = mixin.getDataFromJSON(preg_wom, 'pregnant_woman_name')
+            let [pregnant_woman_name] = mixin.getDataFromJSON(preg_wom, 'pregnant_woman_name')
             if (pregnant_woman_name == 'add_new') {
-              let new_preg_woman_name = mixin.getDataFromJSON(preg_wom, 'pregnant_woman_name_new')
-              let new_pregnant_woman_age = mixin.getDataFromJSON(preg_wom, 'pregnant_woman_age_new')
-              let house_number
-              house_number = mixin.getDataFromJSON(submission, 'house_number_new')
+              let [new_preg_woman_name] = mixin.getDataFromJSON(preg_wom, 'pregnant_woman_name_new')
+              let [new_pregnant_woman_age] = mixin.getDataFromJSON(preg_wom, 'pregnant_woman_age_new')
+              let [house_number] = mixin.getDataFromJSON(submission, 'house_number_new')
               if (!house_number) {
-                house_number = mixin.getDataFromJSON(submission, 'house_number')
+                [house_number] = mixin.getDataFromJSON(submission, 'house_number')
               }
               aggregator.populatePregnantWomen(chadChoicesWorksheet, new_preg_woman_name, new_pregnant_woman_age, house_number, (err) => {
                 winston.info('writting new pregnant woman into local household_visit XLSForm')
@@ -138,30 +138,79 @@ app.post('/newSubmission', (req, res) => {
         })
       })
 
+      let submissionKeys = Object.keys(submission)
+      let submissionTopLevelKeys = submissionKeys.map((key) => {
+        return key.split('/').pop()
+      })
+
+      let [danger_signs_emergency] = mixin.getDataFromJSON(submission, 'danger_signs_emergency')
+      // check emergency visit referal
+      if (danger_signs_emergency) {
+        let referalID = shortid.generate()
+        submission.referalID = referalID
+        submission.referalStatus = 'pending'
+        let sms = `ID: ${referalID} \\n Issues:`
+        let issues = ''
+        danger_signs_emergency = danger_signs_emergency.split(" ")
+        async.eachSeries(danger_signs_emergency, (danger_sign, nxtDangerSign) => {
+          if (danger_sign === 'others') {
+            if (issues) {
+              issues += ", "
+            }
+            let [em_issues] = mixin.getDataFromJSON(submission, 'danger_signs_emergency_others')
+            issues += em_issues
+            return nxtDangerSign()
+          }
+          const promises = []
+          chadChoicesWorksheet.eachRow((chadRows, chadRowNum) => {
+            promises.push(new Promise((resolve, reject) => {
+              if (chadRows.values.includes('danger_signs_emergency') && chadRows.values.includes(danger_sign)) {
+                if (issues) {
+                  issues += ", "
+                }
+                issues += chadRows.values[chadRows.values.length - 1]
+                resolve()
+              } else {
+                resolve()
+              }
+            }))
+          })
+          Promise.all(promises).then(() => {
+            return nxtDangerSign()
+          })
+        }, () => {
+          sms += issues
+          rapidpro.alertReferal(submission.username, sms)
+        })
+      }
+
       // check if needs referal
       // check pregnant woman referral
-      if (submission.hasOwnProperty('rp_preg_woman')) {
-        async.each(submission.rp_preg_woman, (preg_wom, nxtPregWom) => {
+      let [rp_preg_woman, rp_preg_woman_full_key] = mixin.getDataFromJSON(submission, 'rp_preg_woman')
+      if (Array.isArray(rp_preg_woman) && rp_preg_woman.length > 0) {
+        async.eachOf(rp_preg_woman, (preg_wom, preg_wom_ind, nxtPregWom) => {
           // Schedule a reminder for clinic
-          let house_number = mixin.getDataFromJSON(submission, 'house_name')
+          let [house_number] = mixin.getDataFromJSON(submission, 'house_name')
           if (house_number == 'add_new') {
-            house_number = mixin.getDataFromJSON(submission, 'house_number_new')
+            [house_number] = mixin.getDataFromJSON(submission, 'house_number_new')
           }
-          last_clin_vis = mixin.getDataFromJSON(preg_wom, 'forth_visit_above')
+          [last_clin_vis] = mixin.getDataFromJSON(preg_wom, 'forth_visit_above')
           if (!last_clin_vis) {
-            last_clin_vis = mixin.getDataFromJSON(preg_wom, 'third_visit')
+            [last_clin_vis] = mixin.getDataFromJSON(preg_wom, 'third_visit')
             if (!last_clin_vis) {
-              last_clin_vis = mixin.getDataFromJSON(preg_wom, 'second_visit')
+              [last_clin_vis] = mixin.getDataFromJSON(preg_wom, 'second_visit')
               if (!last_clin_vis) {
-                last_clin_vis = mixin.getDataFromJSON(preg_wom, 'first_visit')
+                [last_clin_vis] = mixin.getDataFromJSON(preg_wom, 'first_visit')
               }
             }
           }
-          let last_menstrual = mixin.getDataFromJSON(preg_wom, 'last_menstrual_period')
-          let preg_wom_name = mixin.getDataFromJSON(preg_wom, 'pregnant_woman_name')
+          let [last_menstrual] = mixin.getDataFromJSON(preg_wom, 'last_menstrual_period')
+          let [preg_wom_name] = mixin.getDataFromJSON(preg_wom, 'pregnant_woman_name')
+          let preg_wom_age
           if (preg_wom_name === 'add_new') {
-            preg_wom_name = mixin.getDataFromJSON(preg_wom, 'pregnant_woman_name_new')
-            let preg_wom_age = mixin.getDataFromJSON(preg_wom, 'pregnant_woman_age_new')
+            [preg_wom_name] = mixin.getDataFromJSON(preg_wom, 'pregnant_woman_name_new')
+            let preg_wom_age_dt = mixin.getDataFromJSON(preg_wom, 'pregnant_woman_age_new')
+            preg_wom_age = preg_wom_age_dt[0]
             mongo.addPregnantWoman(house_number, preg_wom_name, preg_wom_age, last_clin_vis, last_menstrual, submission.username)
           } else if (preg_wom_name !== 'add_new') {
             let preg_wom_name_arr = preg_wom_name.split('-')
@@ -171,9 +220,13 @@ app.post('/newSubmission', (req, res) => {
           }
           // end of scheduling a reminder for clinic
 
-          let danger_signs = mixin.getDataFromJSON(preg_wom, 'danger_signs')
+          let [danger_signs] = mixin.getDataFromJSON(preg_wom, 'danger_signs')
           if (danger_signs) {
-            let sms = "Patient:Pregnant Woman \\n Issues:"
+            let referalID = shortid.generate()
+            submission[rp_preg_woman_full_key][preg_wom_ind].referalID = referalID
+            submission[rp_preg_woman_full_key][preg_wom_ind].referalStatus = 'pending'
+            let sms = `ID: ${referalID} \\n Patient: ${preg_wom_name}, Age: ${preg_wom_age} \\n
+            Pregnant Woman \\n Issues: `
             let issues = ''
             danger_signs = danger_signs.split(" ")
             async.eachSeries(danger_signs, (danger_sign, nxtDangerSign) => {
@@ -206,15 +259,19 @@ app.post('/newSubmission', (req, res) => {
       }
 
       // check postnatal mother referral
-      if (submission.hasOwnProperty('rp_breast_feed_mother')) {
-        async.each(submission.rp_breast_feed_mother, (postnatal_mthr, nxtPostnatalMthr) => {
-          let psigns = mixin.getDataFromJSON(postnatal_mthr, 'puperium_danger_signs')
+      let [rp_breast_feed_mother, rp_breast_feed_mother_full_key] = mixin.getDataFromJSON(submission, 'rp_breast_feed_mother')
+      if (Array.isArray(rp_breast_feed_mother) && rp_breast_feed_mother.length > 0) {
+        async.eachOf(rp_breast_feed_mother, (postnatal_mthr, postnatal_mthr_ind, nxtPostnatalMthr) => {
+          let [psigns] = mixin.getDataFromJSON(postnatal_mthr, 'puperium_danger_signs')
           let signs = []
           if (psigns) {
             signs = psigns.split(" ")
           }
           if (signs.length > 0) {
-            let sms = "Patient:Postnatal mother \\n Issues:"
+            let referalID = shortid.generate()
+            submission[rp_breast_feed_mother_full_key][postnatal_mthr_ind].referalID = referalID
+            submission[rp_breast_feed_mother_full_key][postnatal_mthr_ind].referalStatus = 'pending'
+            let sms = `ID: ${referalID} \\n Patient:Postnatal mother \\n Issues:`
             let issues = ''
             async.eachSeries(signs, (sign, nxtDangerSign) => {
               const promises = []
@@ -246,18 +303,21 @@ app.post('/newSubmission', (req, res) => {
       }
 
       // check neonatal child referral
-      if (submission.hasOwnProperty('rp_breast_feed_mother')) {
-        async.each(submission.rp_breast_feed_mother, (postnatal_mthr, nxtNeonatalChild) => {
-          let neo_babies = mixin.getDataFromJSON(postnatal_mthr, 'rp_neonatal_baby')
-          async.each(neo_babies, (neo_baby, nxtNeoBaby) => {
-            let nsigns = mixin.getDataFromJSON(neo_baby, 'neonatal_danger_sign')
+      if (Array.isArray(rp_breast_feed_mother) && rp_breast_feed_mother.length > 0) {
+        async.eachOf(rp_breast_feed_mother, (postnatal_mthr, postnatal_mthr_ind, nxtNeonatalChild) => {
+          let [neo_babies, neo_babies_full_key] = mixin.getDataFromJSON(postnatal_mthr, 'rp_neonatal_baby')
+          async.eachOf(neo_babies, (neo_baby, neo_baby_ind, nxtNeoBaby) => {
+            let [nsigns] = mixin.getDataFromJSON(neo_baby, 'neonatal_danger_sign')
             let signs = []
             if (nsigns) {
               signs = nsigns.split(" ")
             }
 
             if (signs.length > 0) {
-              let sms = "Patient:Neonatal baby \\n Issues:"
+              let referalID = shortid.generate()
+              submission[rp_breast_feed_mother_full_key][postnatal_mthr_ind][neo_babies_full_key][neo_baby_ind].referalID = referalID
+              submission[rp_breast_feed_mother_full_key][postnatal_mthr_ind][neo_babies_full_key][neo_baby_ind].referalStatus = 'pending'
+              let sms = `ID: ${referalID} \\n Patient:Neonatal baby \\n Issues:`
               let issues = ''
               async.eachSeries(signs, (sign, nxtDangerSign) => {
                 const promises = []
@@ -292,12 +352,20 @@ app.post('/newSubmission', (req, res) => {
       }
 
       // check children under 5 referral
-      let under_5 = mixin.getDataFromJSON(submission, 'rp_children_under_5')
+      let [under_5, under_5_full_key] = mixin.getDataFromJSON(submission, 'rp_children_under_5')
       if (under_5 && under_5.length > 0) {
-        async.each(under_5, (susp_pat, nxtSuspPat) => {
-          let danger_signs = mixin.getDataFromJSON(susp_pat, 'danger_signs_child')
+        async.eachOf(under_5, (susp_pat, susp_pat_ind, nxtSuspPat) => {
+          let [danger_signs] = mixin.getDataFromJSON(susp_pat, 'danger_signs_child')
           if (danger_signs) {
-            let sms = "Patient:Children under 5 \\n Issues:"
+            let referalID = shortid.generate()
+            submission[under_5_full_key][susp_pat_ind].referalID = referalID
+            submission[under_5_full_key][susp_pat_ind].referalStatus = 'pending'
+            let [age] = mixin.getDataFromJSON(susp_pat, 'child_age')
+            let sms = `ID: ${referalID} \\n `
+            if (age) {
+              sms += `Age: ${age} \\n`
+            }
+            sms += `Patient: Children under 5 \\n Issues: `
             let issues = ''
             danger_signs = danger_signs.split(" ")
             async.eachSeries(danger_signs, (danger_sign, nxtDangerSign) => {
@@ -330,12 +398,20 @@ app.post('/newSubmission', (req, res) => {
       }
 
       // check  any other sick person referral
-      let sick_person = mixin.getDataFromJSON(submission, 'rp_sick_person')
+      let [sick_person, sick_person_full_key] = mixin.getDataFromJSON(submission, 'rp_sick_person')
       if (sick_person && sick_person.length > 0) {
-        async.each(sick_person, (susp_pat, nxtSuspPat) => {
+        async.eachOf(sick_person, (susp_pat, susp_pat_ind, nxtSuspPat) => {
           let danger_signs = mixin.getDataFromJSON(susp_pat, 'general_examination')
+          let [age] = mixin.getDataFromJSON(susp_pat, 'sick_person_age')
           if (danger_signs) {
-            let sms = "Patient:Sick person \\n Issues:"
+            let referalID = shortid.generate()
+            submission[sick_person_full_key][susp_pat_ind].referalID = referalID
+            submission[sick_person_full_key][susp_pat_ind].referalStatus = 'pending'
+            let sms = `ID: ${referalID} \\n `
+            if (age) {
+              sms += `Age: ${age} \\n`
+            }
+            sms += "Patient:Sick person \\n Issues:"
             let issues = ''
             danger_signs = danger_signs.split(" ")
             async.eachSeries(danger_signs, (danger_sign, nxtDangerSign) => {
@@ -343,7 +419,8 @@ app.post('/newSubmission', (req, res) => {
                 if (issues) {
                   issues += ", "
                 }
-                issues += mixin.getDataFromJSON(susp_pat, 'general_examination_others')
+                let [susp_issues] = mixin.getDataFromJSON(susp_pat, 'general_examination_others')
+                issues += susp_issues
                 return nxtDangerSign()
               }
               const promises = []
@@ -373,7 +450,42 @@ app.post('/newSubmission', (req, res) => {
           }
         })
       }
+      mongo.saveSubmission(submission)
     })
+  })
+})
+
+app.get('/updateReferalStatus', (req, res) => {
+  let referal = req.query.referal_update
+  let status = req.query.status
+  let HFSphone = req.query.phone.toString()
+  if (HFSphone[0] != '+') {
+    HFSphone = '+' + HFSphone.toString()
+    HFSphone = HFSphone.replace(/\s/g, '')
+  }
+  referal = referal.replace('update', '')
+  if (status == 'admitted') {
+    referal = referal.replace('admitted', '')
+    referal = referal.replace('admited', '')
+    referal = referal.replace('adm', '')
+  } else if (status == 'discharged') {
+    referal = referal.replace('discharged', '')
+    referal = referal.replace('discharge', '')
+    referal = referal.replace('disch', '')
+  }
+  referalID = referal.replace(/\s/g, '')
+  if (!referalID) {
+    let sms = `Please include referal ID in your sms`
+    let phone = ['tel:' + HFSphone]
+    rapidpro.broadcast({
+      tels: phone,
+      sms
+    })
+    return
+  }
+  res.status(200).send()
+  mongo.updateReferal(referalID, status, HFSphone, () => {
+    winston.error('done')
   })
 })
 

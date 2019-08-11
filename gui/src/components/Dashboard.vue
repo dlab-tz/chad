@@ -180,14 +180,23 @@ export default {
         breast_feeding: {
           value: 0, key: 'breast_feeding_all', name: 'Number of breastfeeding women'
         },
-        neonates: {
-          value: 0, key: 'neonates_all', name: 'Neonates (under 28 days)'
+        neonates_boys: {
+          value: 0, key: 'neonates_boy_all', name: 'Neonates boys (under 28 days)'
         },
-        infants: {
-          value: 0, key: 'infants_all', name: 'Infants (1 month to under 1 year of age)'
+        neonates_girls: {
+          value: 0, key: 'neonates_boy_all', name: 'Neonates girls (under 28 days)'
         },
-        children_under5: {
-          value: 0, key: 'children_all', name: 'Children (1 year to under 5 years)'
+        infants_boys: {
+          value: 0, key: 'infants_boy_all', name: 'Infants boys (1 month to under 1 year of age)'
+        },
+        infants_girls: {
+          value: 0, key: 'infants_girl_all', name: 'Infants girls (1 month to under 1 year of age)'
+        },
+        children_male_under5: {
+          value: 0, key: 'children_male_all', name: 'Male children (1 year to under 5 years)'
+        },
+        children_female_under5: {
+          value: 0, key: 'children_female_all', name: 'Female children (1 year to under 5 years)'
         },
         adolescents_girls: {
           value: 0, key: 'adolescents_girl_10_19_all', name: 'Adolescent Girls age 10-19  years'
@@ -228,11 +237,7 @@ export default {
       let endMonth = endDate[1]
       let startDay = startDate[2]
       let endDay = endDate[2]
-      let query = `
-        date_created__year__gte=${startYear}&date_created__year__lte=${endYear}&` +
-        `date_created__month__gte=${startMonth}&date_created__month__lte=${endMonth}&` +
-        `date_created__day__gte=${startDay}&date_created__day__lte=${endDay}
-      `
+
       axios.get(backendServer + '/getSubmissions?startDate=' + this.startDate + '&endDate=' + this.endDate).then((households) => {
         //axios.get(aggreatorServer + `/api/v1/data/${householdFormId}?${query}`).then((households) => {
         let total_households = 0, houses = []
@@ -365,24 +370,27 @@ export default {
         this.chartOptions.push(pieOption)
 
         //Neonates vs Infants
+        let total_neonates = indicators['neonates_girls'].value + indicators['neonates_boys'].value
+        let total_infants = indicators['infants_girls'].value + indicators['infants_boys'].value
+        let total_under5 = indicators['children_male_under5'].value + indicators['children_female_under5'].value
         pieOption = this.createChartDefOpt()
         pieOption.title.text = 'Neonates (under 28 days) vs Infants (1 month to under 1 year) vs Children (1 to under 5 years)'
         pieOption.title.subtext = 'Neonates (under 28 days) vs Infants (1 month to under 1 year) vs Children (1 to under 5 years)'
         pieOption.series[0].name = 'Neonates (under 28 days) vs Infants (1 month to under 1 year) vs Children (1 to under 5 years)'
-        pieOption.legend.data.push(`Neonates - under 28 days (${indicators['neonates'].value})`)
-        pieOption.legend.data.push(`Infants - 1 month to under 1 year (${indicators['infants'].value})`)
-        pieOption.legend.data.push(`Children - 1 to under 5 years (${indicators['children_under5'].value})`)
+        pieOption.legend.data.push(`Neonates - under 28 days (${total_neonates})`)
+        pieOption.legend.data.push(`Infants - 1 month to under 1 year (${total_infants})`)
+        pieOption.legend.data.push(`Children - 1 to under 5 years (${total_under5})`)
         pieOption.series[0].data.push({
-          name: `Neonates - under 28 days (${indicators['neonates'].value})`,
-          value: indicators['neonates'].value
+          name: `Neonates - under 28 days (${total_neonates})`,
+          value: total_neonates
         })
         pieOption.series[0].data.push({
-          name: `Infants - 1 month to under 1 year (${indicators['infants'].value})`,
-          value: indicators['infants'].value
+          name: `Infants - 1 month to under 1 year (${total_infants})`,
+          value: total_infants
         })
         pieOption.series[0].data.push({
-          name: `Children - 1 to under 5 years (${indicators['children_under5'].value})`,
-          value: indicators['children_under5'].value
+          name: `Children - 1 to under 5 years (${total_under5})`,
+          value: total_under5
         })
         this.chartOptions.push(pieOption)
 

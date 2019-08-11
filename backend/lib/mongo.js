@@ -8,7 +8,6 @@ const async = require('async')
 const aggregator = require('./aggregator')
 const models = require('./models')
 const config = require('./config')
-
 const database = config.getConf("DB_NAME")
 const mongoUser = config.getConf("DB_USER")
 const mongoPasswd = config.getConf("DB_PASSWORD")
@@ -22,7 +21,8 @@ if (mongoUser && mongoPasswd) {
   mongoURI = `mongodb://${mongoHost}:${mongoPort}/${database}`;
 }
 
-module.exports = function () {
+module.exports = function (rpFnc) {
+  const rapidpro = rpFnc
   return {
     getRegions(id, callback) {
       let filter = {}
@@ -177,9 +177,54 @@ module.exports = function () {
             return nxtField()
           })
         }, () => {
-          return callback(schemaFields)
+          this.addOtherSchemaFields(schemaFields, () => {
+            return callback(schemaFields)
+          })
         })
       })
+    },
+    addOtherSchemaFields(schemaFields, callback) {
+      //add geolocation
+      schemaFields['_geolocation'] = {
+        type: []
+      }
+      // add referal ID
+      if (schemaFields.rp_preg_woman && Array.isArray(schemaFields.rp_preg_woman)) {
+        schemaFields.rp_preg_woman[0].referalID = {}
+        schemaFields.rp_preg_woman[0].referalID.type = "String"
+        schemaFields.rp_preg_woman[0].referalStatus = {}
+        schemaFields.rp_preg_woman[0].referalStatus.type = "String"
+      }
+      if (schemaFields.rp_breast_feed_mother && Array.isArray(schemaFields.rp_breast_feed_mother)) {
+        schemaFields.rp_breast_feed_mother[0].referalID = {}
+        schemaFields.rp_breast_feed_mother[0].referalID.type = "String"
+        schemaFields.rp_breast_feed_mother[0].referalStatus = {}
+        schemaFields.rp_breast_feed_mother[0].referalStatus.type = "String"
+
+        if (schemaFields.rp_breast_feed_mother.rp_neonatal_baby && Array.isArray(schemaFields.rp_breast_feed_mother.rp_neonatal_baby)) {
+          schemaFields.rp_breast_feed_mother[0].rp_neonatal_baby[0].referalID = {}
+          schemaFields.rp_breast_feed_mother[0].rp_neonatal_baby[0].referalID.type = "String"
+          schemaFields.rp_breast_feed_mother[0].rp_neonatal_baby[0].referalStatus = {}
+          schemaFields.rp_breast_feed_mother[0].rp_neonatal_baby[0].referalStatus.type = "String"
+        }
+      }
+      if (schemaFields.rp_children_under_5 && Array.isArray(schemaFields.rp_children_under_5)) {
+        schemaFields.rp_children_under_5[0].referalID = {}
+        schemaFields.rp_children_under_5[0].referalID.type = "String"
+        schemaFields.rp_children_under_5[0].referalStatus = {}
+        schemaFields.rp_children_under_5[0].referalStatus.type = "String"
+      }
+      if (schemaFields.rp_sick_person && Array.isArray(schemaFields.rp_sick_person)) {
+        schemaFields.rp_sick_person[0].referalID = {}
+        schemaFields.rp_sick_person[0].referalID.type = "String"
+        schemaFields.rp_sick_person[0].referalStatus = {}
+        schemaFields.rp_sick_person[0].referalStatus.type = "String"
+      }
+      schemaFields.referalID = {}
+      schemaFields.referalID.type = "String"
+      schemaFields.referalStatus = {}
+      schemaFields.referalStatus.type = "String"
+      return callback()
     },
     saveSubmission(submission) {
       let saveSubmission = {}
@@ -215,6 +260,10 @@ module.exports = function () {
       function cleanKeys(data, saveSubmission, callback) {
         if (Array.isArray(data)) {
           async.eachOf(data, (dt, key, nxtDt) => {
+            if (typeof dt !== 'object') {
+              saveSubmission.push(dt)
+              return nxtDt()
+            }
             saveSubmission[key] = {}
             cleanKeys(dt, saveSubmission[key], () => {
               return nxtDt()
@@ -228,7 +277,6 @@ module.exports = function () {
               let key1 = key.split('/').pop()
               saveSubmission[key1] = []
               data[key1] = deepmerge.all([data[key]])
-              //delete data[key]
               cleanKeys(data[key1], saveSubmission[key1], () => {
                 return nxtDt()
               })
@@ -243,6 +291,85 @@ module.exports = function () {
         }
       }
     },
+    updateReferal(referalID, referalStatus, HFSphone, callback) {
+      this.generateSubmissionSchema((schemaFields) => {
+        let submissionSchema = new mongoose.Schema(schemaFields)
+        let connection = mongoose.createConnection(mongoURI, {
+          useNewUrlParser: true,
+        })
+        connection.on('error', () => {
+          winston.error(`An error occured while connecting to DB ${database}`);
+        });
+        let referalFound = false
+        connection.once('open', () => {
+          const SubmissionModel = connection.model('Submissions', submissionSchema)
+          let submissions = SubmissionModel.find().cursor()
+          submissions.on('data', (submission) => {
+            submission = JSON.parse(JSON.stringify(submission))
+            if (submission.referalID && submission.referalID == referalID) {
+              let sms = `HFS with phone ${HFSphone} updated Referal of ID ${referalID} to ${referalStatus}`
+              rapidpro.alertCHA(submission.username, sms)
+              submission.referalStatus = referalStatus
+              referalFound = true
+              SubmissionModel.findByIdAndUpdate(submission._id, submission, (err, data) => {
+                return
+              })
+            } else {
+              async.eachOf(submission, (subm, index, nxtSubm) => {
+                if (Array.isArray(subm)) {
+                  searchReferal(submission[index], referalID, referalStatus, (found) => {
+                    if (found) {
+                      let sms = `HFS with phone ${HFSphone} updated Referal of ID ${referalID} to ${referalStatus}`
+                      rapidpro.alertCHA(submission.username, sms)
+                      referalFound = true
+                      SubmissionModel.findByIdAndUpdate(submission._id, submission, (err, data) => {
+                        return
+                      })
+                    }
+                  })
+                }
+              })
+            }
+          })
+          submissions.on('close', () => {
+            if (!referalFound) {
+              let sms = `Referal with ID ${referalID} was not found on the system, please cross check referal ID and resend`
+              let phone = ['tel:' + HFSphone]
+              rapidpro.broadcast({
+                tels: phone,
+                sms
+              })
+            }
+            return callback()
+          })
+        })
+      })
+
+      function searchReferal(submission, referalID, referalStatus, callback) {
+        let found = false
+        async.eachOf(submission, (subm, index, nxtSubm) => {
+          if (subm == referalID) {
+            submission.referalStatus = referalStatus
+            found = true
+            return callback(found)
+          }
+          if (typeof subm === 'object' || Array.isArray(subm)) {
+            searchReferal(submission[index], referalID, referalStatus, (fnd) => {
+              found = fnd
+              if (found) {
+                return callback(found)
+              }
+              return nxtSubm()
+            })
+          } else {
+            return nxtSubm()
+          }
+        }, () => {
+          return callback(found)
+        })
+      }
+    },
+
     addPregnantWoman(house, fullName, age, last_clin_vis, last_menstrual, cha_username) {
       if (mongoUser && mongoPasswd) {
         var uri = `mongodb://${mongoUser}:${mongoPasswd}@${mongoHost}:${mongoPort}/${database}`;
