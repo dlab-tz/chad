@@ -10,6 +10,8 @@ const jwt = require('jsonwebtoken')
 const cors = require('cors');
 const bodyParser = require('body-parser')
 const shortid = require('shortid');
+const uuid4 = require('uuid/v4');
+const fs = require('fs')
 var guiRouter = require('./routes/gui')
 const aggregator = require('./aggregator')
 const mixin = require('./mixin')
@@ -85,7 +87,7 @@ app.post('/newSubmission', (req, res) => {
   res.status(200).send()
   winston.info('New submission received')
   let householdFormID = config.getConf("aggregator:householdForm:id")
-  let householdFormName = config.getConf("aggregator:householdForm:name")
+  let householdFormName = uuid4()
   let submission = req.body
   // populate any new house/ pregnant woman as a choice
   aggregator.downloadXLSForm(householdFormID, householdFormName, (err) => {
@@ -134,6 +136,9 @@ app.post('/newSubmission', (req, res) => {
       }, () => {
         winston.info('Updating the online CHAD XLSForm with the local household XLSForm')
         aggregator.publishForm(householdFormID, householdFormName, () => {
+          fs.unlink(__dirname + '/' + householdFormName + '.xlsx', () => {
+
+          })
           winston.info('Online household XLSForm Updated')
         })
       })

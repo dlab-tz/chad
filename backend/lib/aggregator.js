@@ -1,6 +1,7 @@
 require('./init')
 const request = require("request")
 const winston = require('winston')
+const uuid4 = require('uuid/v4');
 const config = require('./config')
 const mixin = require('./mixin')
 const URI = require('urijs')
@@ -16,7 +17,7 @@ const publishForm = (formId, formName, callback) => {
       Authorization: `Token ${token}`
     },
     formData: {
-      xls_file: fs.createReadStream(__dirname + '/household_visit.xlsx')
+      xls_file: fs.createReadStream(__dirname + '/' + formName + '.xlsx')
     }
   }
   request.patch(options, (err, res, body) => {
@@ -29,7 +30,7 @@ const publishForm = (formId, formName, callback) => {
 
 const addLocationToXLSForm = (id, name, parent, type, callback) => {
   let householdFormID = config.getConf("aggregator:householdForm:id")
-  let householdFormName = config.getConf("aggregator:householdForm:name")
+  let householdFormName = uuid4()
   downloadXLSForm(householdFormID, householdFormName, (err) => {
     mixin.getWorkbook(__dirname + '/' + householdFormName + '.xlsx', (chadWorkbook) => {
       let chadChoicesWorksheet = chadWorkbook.getWorksheet('choices')
@@ -48,6 +49,9 @@ const addLocationToXLSForm = (id, name, parent, type, callback) => {
       chadWorkbook.xlsx.writeFile(__dirname + '/' + householdFormName + '.xlsx').then(() => {
         winston.info('Updating the online CHAD XLSForm with the local household XLSForm')
         publishForm(householdFormID, householdFormName, () => {
+          fs.unlink(__dirname + '/' + householdFormName + '.xlsx', () => {
+
+          })
           winston.info('Online household XLSForm Updated')
           return callback()
         })
