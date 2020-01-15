@@ -18,12 +18,13 @@
     "level": "info"
   },
   "aggregator": {
+    "account": "ashaban",
     "host": "http://localhost:8000",
     "user": "ashaban",
     "password": "xxxxx",
     "token": "faba97475db86dfcf02c839eff9c41c234bcf261",
     "householdForm": {
-      "id": "1",
+      "id": "8",
       "name": "household_visit"
     }
   },
