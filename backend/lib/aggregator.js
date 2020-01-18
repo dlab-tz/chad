@@ -330,8 +330,7 @@ const newSubmission = (submission, callback) => {
       chadWorkbook => {
         let chadChoicesWorksheet = chadWorkbook.getWorksheet('choices');
         let [house_name] = mixin.getDataFromJSON(submission, 'house_name');
-        async.series(
-          {
+        async.series({
             new_house: callback => {
               if (house_name == 'add_new') {
                 let [new_house_name] = mixin.getDataFromJSON(
@@ -563,7 +562,7 @@ const newSubmission = (submission, callback) => {
                 last_menstrual,
                 submission.username
               );
-            } else if (preg_wom_name !== 'add_new') {
+            } else if (preg_wom_name !== 'add_new' && preg_wom_name) {
               let preg_wom_name_arr = preg_wom_name.split('-');
               preg_wom_name = preg_wom_name_arr.shift().trim();
               preg_wom_age = preg_wom_name_arr.shift().trim();
@@ -730,8 +729,8 @@ const newSubmission = (submission, callback) => {
                       postnatal_mthr_ind
                     ][neo_babies_full_key][neo_baby_ind].referalID = referalID;
                     submission[rp_breast_feed_mother_full_key][
-                      postnatal_mthr_ind
-                    ][neo_babies_full_key][neo_baby_ind].referalStatus =
+                        postnatal_mthr_ind
+                      ][neo_babies_full_key][neo_baby_ind].referalStatus =
                       'pending';
                     let sms = `ID: ${referalID} \\n Patient:Neonatal baby \\n Issues:`;
                     let issues = '';
