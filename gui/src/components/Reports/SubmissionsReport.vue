@@ -75,6 +75,7 @@
 </template>
 <script>
 import axios from "axios";
+import moment from "moment";
 const backendServer = process.env.VUE_APP_BACKEND_SERVER;
 export default {
   data() {
@@ -109,8 +110,7 @@ export default {
       if (!this.month) {
         return null;
       }
-      const [year, month] = this.month.split("-");
-      return `${month}/${year}`;
+      return moment(this.month).format("MMMM YYYY");
     }
   },
   created() {
