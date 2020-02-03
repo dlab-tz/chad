@@ -24,7 +24,7 @@ const port = config.getConf('server:port');
 
 const app = express();
 
-let jwtValidator = function(req, res, next) {
+let jwtValidator = function (req, res, next) {
   if (
     req.method == 'OPTIONS' ||
     req.path == '/authenticate/' ||
@@ -119,9 +119,9 @@ app.get('/:aggregatorAccount/formList', (req, res) => {
 app.get('/:aggregatorAccount/forms/:id/form.xml', (req, res) => {
   winston.info(
     'Received a request to download form with id ' +
-      req.params.id +
-      ' from account ' +
-      req.params.aggregatorAccount
+    req.params.id +
+    ' from account ' +
+    req.params.aggregatorAccount
   );
   aggregator.forms(
     req.params.aggregatorAccount,
@@ -137,20 +137,17 @@ app.get('/:aggregatorAccount/forms/:id/form.xml', (req, res) => {
 
 app.post('/:aggregatorAccount/submission', (req, res) => {
   winston.info('Received new submission');
-  winston.error(req.path);
   const parseString = xml2js.parseString;
   const form = new formidable.IncomingForm();
   form.parse(req, (err, fields, files) => {
-    winston.error(JSON.stringify(files, 0, 2));
     const fileName = Object.keys(files)[0];
     fs.readFile(files[fileName].path, (err, fileData) => {
       parseString(
-        fileData,
-        {
+        fileData, {
           explicitArray: false,
           mergeAttrs: true,
         },
-        function(err, result) {
+        function (err, result) {
           let houseHoldFormName = config.getConf(
             'aggregator:householdForm:name'
           );
@@ -326,8 +323,7 @@ app.get('/syncLocations', (req, res) => {
 });
 
 app.get('/syncContacts', (req, res) => {
-  async.parallel(
-    {
+  async.parallel({
       chaSync: callback => {
         mongo.getCHA(null, (err, data) => {
           async.each(
@@ -417,14 +413,13 @@ app.listen(port, () => {
   db.on('error', console.error.bind(console, 'connection error:'));
   db.once('open', () => {
     models.UsersModel.find({
-      userName: 'root@bmf.org',
-    })
+        userName: 'root@bmf.org',
+      })
       .lean()
       .exec((err, data) => {
         if (data.length == 0) {
           winston.info('Default user not found, adding now ...');
-          let roles = [
-            {
+          let roles = [{
               name: 'Admin',
             },
             {
@@ -432,8 +427,7 @@ app.listen(port, () => {
             },
           ];
           models.RolesModel.collection.insertMany(roles, (err, data) => {
-            models.RolesModel.find(
-              {
+            models.RolesModel.find({
                 name: 'Admin',
               },
               (err, data) => {

@@ -1,5 +1,6 @@
 require('../init')
 const formidable = require('formidable')
+const moment = require('moment');
 const winston = require('winston')
 const mongoose = require('mongoose')
 const bcrypt = require('bcrypt')
@@ -741,41 +742,84 @@ router.post('/addHFS', (req, res) => {
 })
 
 router.get('/getSubmissions', (req, res) => {
-    let startDate = req.query.startDate
-    let endDate = req.query.endDate
-    winston.info("Receved request to get submission data")
-    mongo.getSubmissions(startDate, endDate, (err, data) => {
-      if (err) {
-        res.status(500).send()
-      } else {
-        res.status(200).json(data)
-      }
-    })
-  }),
+  let startDate = req.query.startDate
+  let endDate = req.query.endDate
+  winston.info("Receved request to get submission data")
+  mongo.getSubmissions(startDate, endDate, (err, data) => {
+    if (err) {
+      res.status(500).send()
+    } else {
+      res.status(200).json(data)
+    }
+  })
+})
 
-  router.get('/location/:type', (req, res) => {
-    let model = req.params.type + 'Model'
-    let id = req.query.id
-    let query
-    if (id) {
-      query = {
-        id: id
+router.get('/getSubmissionsReport', (req, res) => {
+  let month = req.query.month
+  let startDate = moment(month, "YYYY-MM").startOf('month').format('YYYY-MM-DD')
+  let endDate = moment(month, "YYYY-MM").endOf('month').format('YYYY-MM-DD')
+  winston.info("Receved request to get submission data")
+  mongo.getSubmissions(startDate, endDate, (err, data) => {
+    if (err) {
+      res.status(500).send()
+    } else {
+      let report = []
+      const promises = []
+      for (let submission of data) {
+        promises.push(new Promise((resolve, reject) => {
+          mongo.getVillages(submission.village, (err, data) => {
+            if (Array.isArray(data) && data.length > 0) {
+              let village = data[0].name
+              let found = false
+              for (let index in report) {
+                if (report[index].chw === submission.CHA_name && report[index].village === village) {
+                  let totalHouseholds = parseInt(report[index].househoulds)
+                  report[index].househoulds = totalHouseholds + 1
+                  found = true
+                }
+              }
+              if (!found) {
+                report.push({
+                  chw: submission.CHA_name,
+                  village,
+                  househoulds: 1
+                })
+              }
+            }
+            resolve()
+          })
+        }))
       }
-    } else {
-      query = {}
-    }
-    if (mongoUser && mongoPasswd) {
-      var uri = `mongodb://${mongoUser}:${mongoPasswd}@${mongoHost}:${mongoPort}/${database}`;
-    } else {
-      var uri = `mongodb://${mongoHost}:${mongoPort}/${database}`;
-    }
-    mongoose.connect(uri, {}, () => {
-      models[model].find(query, (err, data) => {
-        data = JSON.parse(JSON.stringify(data))
-        res.status(200).json(data)
+      Promise.all(promises).then(() => {
+        res.status(200).json(report)
       })
+    }
+  })
+})
+
+router.get('/location/:type', (req, res) => {
+  let model = req.params.type + 'Model'
+  let id = req.query.id
+  let query
+  if (id) {
+    query = {
+      id: id
+    }
+  } else {
+    query = {}
+  }
+  if (mongoUser && mongoPasswd) {
+    var uri = `mongodb://${mongoUser}:${mongoPasswd}@${mongoHost}:${mongoPort}/${database}`;
+  } else {
+    var uri = `mongodb://${mongoHost}:${mongoPort}/${database}`;
+  }
+  mongoose.connect(uri, {}, () => {
+    models[model].find(query, (err, data) => {
+      data = JSON.parse(JSON.stringify(data))
+      res.status(200).json(data)
     })
   })
+})
 
 router.get('/locationTree', (req, res) => {
   let id = req.query.id

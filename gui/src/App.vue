@@ -137,6 +137,14 @@
                 <v-icon>list</v-icon>HFS
               </v-list-tile-title>
             </v-list-tile>
+            <v-list-tile
+              to="SubmissionsReport"
+              v-if="$store.state.auth.role === 'Admin'"
+            >
+              <v-list-tile-title>
+                <v-icon>list</v-icon>Submissions Report
+              </v-list-tile-title>
+            </v-list-tile>
           </v-list>
         </v-menu>
         <v-menu
@@ -257,13 +265,13 @@ import VueCookies from "vue-cookies";
 export default {
   name: "App",
   components: {},
-  data () {
+  data() {
     return {
       title: "CHAID",
       fixed: false
     };
   },
-  created () {
+  created() {
     if (VueCookies.get("token") && VueCookies.get("userID")) {
       this.$store.state.auth.token = VueCookies.get("token");
       this.$store.state.auth.userID = VueCookies.get("userID");
