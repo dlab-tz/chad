@@ -57,6 +57,9 @@
       </v-flex>
       <v-spacer></v-spacer>
     </v-layout>
+    <v-btn v-if='csvData.length > 0' color="primary" @click="downloadCSV">
+      <v-icon left>file_copy</v-icon>Download CSV
+    </v-btn>
     <v-data-table
       :headers="reportHeader"
       :items="reportRows"
@@ -74,47 +77,55 @@
   </v-container>
 </template>
 <script>
-import axios from "axios";
-import moment from "moment";
-const backendServer = process.env.VUE_APP_BACKEND_SERVER;
+import axios from 'axios'
+import moment from 'moment'
+const backendServer = process.env.VUE_APP_BACKEND_SERVER
 export default {
-  data() {
+  data () {
     return {
       reportRows: [],
       reportHeader: [
-        { text: "Month", value: "Month" },
-        { text: "Village", value: "village" },
-        { text: "CHW Name", value: "chw" },
-        { text: "Number of Households", value: "househoulds" }
+        { text: 'Month', value: 'Month' },
+        { text: 'Village', value: 'village' },
+        { text: 'CHW Name', value: 'chw' },
+        { text: 'Number of Households', value: 'househoulds' }
       ],
       month: new Date().toISOString().substr(0, 7),
       monthMenu: false,
-      startDateMenu: false,
-      endDateMenu: false,
-      startDate: new Date("2019-05-01").toISOString().substr(0, 10),
-      endDate: new Date().toISOString().substr(0, 10),
-      chartOptions: []
-    };
+      csvData: ''
+    }
   },
   methods: {
-    generate() {
+    generate () {
       axios
-        .get(backendServer + "/getSubmissionsReport?month=" + this.month)
+        .get(backendServer + '/getSubmissionsReport?month=' + this.month)
         .then(report => {
-          this.reportRows = report.data;
-        });
+          this.reportRows = report.data.report
+          this.csvData = report.data.csv
+        })
+    },
+    downloadCSV () {
+      const encoding = 'data:text/csv;charset=utf-8,'
+      const csvData = encoding + escape(this.csvData)
+      const link = document.createElement('a')
+      link.setAttribute('href', csvData)
+      link.setAttribute(
+        'download',
+        'submissionReport.csv'
+      )
+      link.click()
     }
   },
   computed: {
-    monthFormatted() {
+    monthFormatted () {
       if (!this.month) {
-        return null;
+        return null
       }
-      return moment(this.month).format("MMMM YYYY");
+      return moment(this.month).format('MMMM YYYY')
     }
   },
-  created() {
-    this.generate();
+  created () {
+    this.generate()
   }
-};
+}
 </script>

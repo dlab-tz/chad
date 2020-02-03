@@ -7,6 +7,7 @@ const bcrypt = require('bcrypt')
 const jwt = require('jsonwebtoken')
 const async = require('async')
 var express = require('express')
+const jsoncsv = require('json-csv');
 var router = express.Router()
 const config = require('../config')
 const mongo = require('../mongo')()
@@ -767,31 +768,82 @@ router.get('/getSubmissionsReport', (req, res) => {
       const promises = []
       for (let submission of data) {
         promises.push(new Promise((resolve, reject) => {
-          mongo.getVillages(submission.village, (err, data) => {
-            if (Array.isArray(data) && data.length > 0) {
-              let village = data[0].name
-              let found = false
-              for (let index in report) {
-                if (report[index].chw === submission.CHA_name && report[index].village === village) {
+          let fullname
+          let village
+          async.parallel([
+            (callback) => {
+              mongo.getCHAByUsername(submission.username, (err, user) => {
+                if (Array.isArray(user) && user.length > 0) {
+                  fullname = user[0].firstName + ' ' + user[0].otherName + ' ' + user[0].surname
+                }
+                return callback(null)
+              })
+            },
+            (callback) => {
+              mongo.getVillages(submission.village, (err, data) => {
+                if (Array.isArray(data) && data.length > 0) {
+                  village = data[0].name
+                }
+                return callback(null)
+              })
+            }
+          ], () => {
+            let found = false
+            let house_number = submission.house_name.trim()
+            if (house_number === 'add_new') {
+              house_number = submission.house_name_new.trim() + " - " + submission.house_number_new.trim()
+            }
+            for (let index in report) {
+              if (report[index].username === submission.username && report[index].village === village) {
+                let newHouse = report[index].houses.find((house) => {
+                  return house === house_number
+                })
+                if (!newHouse) {
                   let totalHouseholds = parseInt(report[index].househoulds)
                   report[index].househoulds = totalHouseholds + 1
-                  found = true
+                  report[index].houses.push(house_number)
                 }
+                found = true
               }
-              if (!found) {
-                report.push({
-                  chw: submission.CHA_name,
-                  village,
-                  househoulds: 1
-                })
-              }
+            }
+            if (!found) {
+              report.push({
+                username: submission.username,
+                chw: fullname,
+                village,
+                houses: [house_number],
+                househoulds: 1,
+                month: moment(month).format('MMMM YYYY')
+              })
             }
             resolve()
           })
         }))
       }
       Promise.all(promises).then(() => {
-        res.status(200).json(report)
+        let fields = [{
+          name: 'month',
+          label: 'Month'
+        }, {
+            name: 'village',
+            label: 'Village',
+          }, {
+            name: 'chw',
+            label: 'CHW Name',
+          },
+          {
+            name: 'househoulds',
+            label: 'Number of Households',
+          }
+        ];
+        jsoncsv.buffered(report, {
+          fields: fields
+        }, (err, csv) => {
+          res.status(200).json({
+            report,
+            csv
+          })
+        })
       })
     }
   })
