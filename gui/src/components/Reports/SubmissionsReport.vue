@@ -19,7 +19,7 @@
           <template v-slot:activator="{ on }">
             <v-text-field
               v-model="monthFormatted"
-              label="Picker in menu"
+              label="Month"
               prepend-icon="event"
               readonly
               v-on="on"
