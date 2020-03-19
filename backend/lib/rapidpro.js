@@ -262,6 +262,10 @@ const broadcast = ({
     json: true
   }
   request.post(options, (err, res, body) => {
+    if(err) {
+      winston.error(err)
+    }
+    winston.info(body)
     winston.info("Broadcast msg sent successfully")
   })
 }

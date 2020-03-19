@@ -526,6 +526,8 @@ router.post('/addCHA', (req, res) => {
               mongo.updateCHARapidproId(newContact.fields.chadid, newContact.uuid, () => {
 
               })
+            } else {
+              winston.error(newContact)
             }
           })
           aggregator.createAccount(fields, () => {

@@ -850,7 +850,7 @@ const newSubmission = (submission, callback) => {
         );
         if (sick_person && sick_person.length > 0) {
           async.eachOf(sick_person, (susp_pat, susp_pat_ind, nxtSuspPat) => {
-            let danger_signs = mixin.getDataFromJSON(
+            let [danger_signs] = mixin.getDataFromJSON(
               susp_pat,
               'general_examination'
             );
