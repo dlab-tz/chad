@@ -203,21 +203,26 @@ app.get('/updateReferalStatus', (req, res) => {
     HFSphone = '+' + HFSphone.toString();
     HFSphone = HFSphone.replace(/\s/g, '');
   }
-  referal = referal.replace('update', '');
+  referal = referal.replace(/update/ig, '');
   if (status == 'admitted') {
-    referal = referal.replace('admitted', '');
-    referal = referal.replace('admited', '');
-    referal = referal.replace('adm', '');
+    referal = referal.replace(/admitted/ig, '');
+    referal = referal.replace(/admited/ig, '');
+    referal = referal.replace(/adm/ig, '');
   } else if (status == 'discharged') {
-    referal = referal.replace('discharged', '');
-    referal = referal.replace('discharge', '');
-    referal = referal.replace('disch', '');
+    referal = referal.replace(/discharged/ig, '');
+    referal = referal.replace(/discharge/ig, '');
+    referal = referal.replace(/disch/ig, '');
   } else if (status == 'treated') {
-    referal = referal.replace('treated', '');
+    referal = referal.replace(/treated/ig, '');
+    referal = referal.replace(/treted/ig, '');
   } else if (status == 'not_received') {
-    referal = referal.replace('not_received', '');
+    referal = referal.replace(/not received/ig, '');
+    referal = referal.replace(/not receved/ig, '');
+    referal = referal.replace(/not recieved/ig, '');
+    referal = referal.replace(/not recived/ig, '');
   }
   referalID = referal.replace(/\s/g, '');
+  winston.info('Updatating referal ' + referalID);
   if (!referalID) {
     let sms = `Please include referal ID in your sms`;
     let phone = ['tel:' + HFSphone];
