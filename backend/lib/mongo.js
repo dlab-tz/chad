@@ -426,6 +426,13 @@ module.exports = function(rpFnc) {
                 tels: phone,
                 sms,
               });
+            } else {
+              let sms = `Referal with ID ${referalID} updated successfully`;
+              let phone = ['tel:' + HFSphone];
+              rapidpro.broadcast({
+                tels: phone,
+                sms,
+              });
             }
             return callback();
           });
