@@ -317,7 +317,6 @@ const shareFormWithUser = (formId, username, callback) => {
 };
 
 const newSubmission = (submission, callback) => {
-  const referalID = shortid.generate();
   //acknowlodge recipient
   // res.status(200).send();
   // winston.info('New submission received');
@@ -448,6 +447,7 @@ const newSubmission = (submission, callback) => {
         );
         // check emergency visit referal
         if (danger_signs_emergency) {
+          let referalID = shortid.generate();
           submission.referalID = referalID;
           submission.referalStatus = 'pending';
           let sms = `ID: ${referalID} \\n Issues:`;
@@ -582,8 +582,12 @@ const newSubmission = (submission, callback) => {
               'danger_signs'
             );
             if (danger_signs) {
-              submission.referalID = referalID;
-              submission.referalStatus = 'pending';
+              let referalID = shortid.generate();
+              submission[rp_preg_woman_full_key][
+                preg_wom_ind
+              ].referalID = referalID;
+              submission[rp_preg_woman_full_key][preg_wom_ind].referalStatus =
+                'pending';
               let sms = `ID: ${referalID} \\n Patient: ${preg_wom_name}, Age: ${preg_wom_age} \\n Pregnant Woman \\n Issues: `;
               let issues = '';
               danger_signs = danger_signs.split(' ');
@@ -646,8 +650,13 @@ const newSubmission = (submission, callback) => {
                 signs = psigns.split(' ');
               }
               if (signs.length > 0) {
-                submission.referalID = referalID;
-                submission.referalStatus = 'pending';
+                let referalID = shortid.generate();
+                submission[rp_breast_feed_mother_full_key][
+                  postnatal_mthr_ind
+                ].referalID = referalID;
+                submission[rp_breast_feed_mother_full_key][
+                  postnatal_mthr_ind
+                ].referalStatus = 'pending';
                 let sms = `ID: ${referalID} \\n Patient:Postnatal mother \\n Issues:`;
                 let issues = '';
                 async.eachSeries(
@@ -715,8 +724,14 @@ const newSubmission = (submission, callback) => {
                   }
 
                   if (signs.length > 0) {
-                    submission.referalID = referalID;
-                    submission.referalStatus = 'pending';
+                    let referalID = shortid.generate();
+                    submission[rp_breast_feed_mother_full_key][
+                      postnatal_mthr_ind
+                    ][neo_babies_full_key][neo_baby_ind].referalID = referalID;
+                    submission[rp_breast_feed_mother_full_key][
+                        postnatal_mthr_ind
+                      ][neo_babies_full_key][neo_baby_ind].referalStatus =
+                      'pending';
                     let sms = `ID: ${referalID} \\n Patient:Neonatal baby \\n Issues:`;
                     let issues = '';
                     async.eachSeries(
@@ -778,8 +793,10 @@ const newSubmission = (submission, callback) => {
               'danger_signs_child'
             );
             if (danger_signs) {
-              submission.referalID = referalID;
-              submission.referalStatus = 'pending';
+              let referalID = shortid.generate();
+              submission[under_5_full_key][susp_pat_ind].referalID = referalID;
+              submission[under_5_full_key][susp_pat_ind].referalStatus =
+                'pending';
               let [age] = mixin.getDataFromJSON(susp_pat, 'child_age');
               let sms = `ID: ${referalID} \\n `;
               if (age) {
@@ -839,8 +856,12 @@ const newSubmission = (submission, callback) => {
             );
             let [age] = mixin.getDataFromJSON(susp_pat, 'sick_person_age');
             if (danger_signs) {
-              submission.referalID = referalID;
-              submission.referalStatus = 'pending';
+              let referalID = shortid.generate();
+              submission[sick_person_full_key][
+                susp_pat_ind
+              ].referalID = referalID;
+              submission[sick_person_full_key][susp_pat_ind].referalStatus =
+                'pending';
               let sms = `ID: ${referalID} \\n `;
               if (age) {
                 sms += `Age: ${age} \\n`;
