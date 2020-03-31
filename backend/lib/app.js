@@ -212,6 +212,10 @@ app.get('/updateReferalStatus', (req, res) => {
     referal = referal.replace('discharged', '');
     referal = referal.replace('discharge', '');
     referal = referal.replace('disch', '');
+  } else if (status == 'treated') {
+    referal = referal.replace('treated', '');
+  } else if (status == 'not_received') {
+    referal = referal.replace('not_received', '');
   }
   referalID = referal.replace(/\s/g, '');
   if (!referalID) {
