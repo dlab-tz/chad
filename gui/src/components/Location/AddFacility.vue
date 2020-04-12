@@ -46,15 +46,18 @@
           >
             <v-text-field
               required
-              @blur="$v.name.$touch()"
-              @change="$v.name.$touch()"
               :error-messages="nameErrors"
               v-model="name"
               box
               color="deep-purple"
               label="Facility Name"
+              @blur="$v.name.$touch()"
+              @change="$v.name.$touch()"
             />
             <v-treeview
+              selectable
+              selection-type='independent'
+              v-model="villages"
               :active.sync="active"
               :open.sync="open"
               :items="items"
@@ -86,7 +89,7 @@
             <v-spacer />
             <v-btn
               @click="addFacility()"
-              :disabled="$v.$invalid || active.length === 0"
+              :disabled="$v.$invalid || villages.length === 0"
               class="white--text"
               color="deep-purple accent-4"
               depressed
@@ -114,6 +117,7 @@ export default {
   },
   data () {
     return {
+      villages: [],
       active: [],
       open: [],
       name: '',
@@ -129,7 +133,7 @@ export default {
       this.$store.state.progressTitle = 'Saving Facility'
       let formData = new FormData()
       formData.append('name', this.name)
-      formData.append('parent', this.active[0])
+      formData.append('parent', JSON.stringify(this.villages))
       axios.post(backendServer + '/addFacility/', formData, {
         headers: {
           'Content-Type': 'multipart/form-data'
@@ -155,7 +159,7 @@ export default {
     nameErrors () {
       const errors = []
       if (!this.$v.name.$dirty) return errors
-      !this.$v.name.required && errors.push('District Name is required')
+      !this.$v.name.required && errors.push('Facility Name is required')
       return errors
     },
     items () {
@@ -168,7 +172,7 @@ export default {
     }
   },
   created () {
-    this.lastLocationType = 'district'
+    this.lastLocationType = 'village'
   }
 }
 </script>

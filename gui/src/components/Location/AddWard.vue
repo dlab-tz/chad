@@ -2,8 +2,9 @@
   <v-container>
     <v-layout
       row
-      wrap>
-      <v-spacer/>
+      wrap
+    >
+      <v-spacer />
       <v-flex xs6>
         <v-alert
           style="width: 500px"
@@ -25,20 +26,24 @@
         </v-alert>
         <v-card
           class="mx-auto"
-          style="max-width: 500px;">
+          style="max-width: 500px;"
+        >
           <v-system-bar
             color="deep-purple darken-4"
-            dark/>
+            dark
+          />
           <v-toolbar
             color="deep-purple accent-4"
             cards
             dark
-            flat>
-            <v-card-title class="title font-weight-regular">Add New Village</v-card-title>
+            flat
+          >
+            <v-card-title class="title font-weight-regular">Add New Ward</v-card-title>
           </v-toolbar>
           <v-form
             ref="form"
-            class="pa-3 pt-4">
+            class="pa-3 pt-4"
+          >
             <v-text-field
               required
               @blur="$v.name.$touch()"
@@ -47,7 +52,8 @@
               v-model="name"
               box
               color="deep-purple"
-              label="Village Name"/>
+              label="Ward Name"
+            />
             <v-treeview
               :active.sync="active"
               :open.sync="open"
@@ -69,34 +75,40 @@
               </template>
             </v-treeview>
           </v-form>
-          <v-divider/>
+          <v-divider />
           <v-card-actions>
             <v-btn
               flat
-              @click="$refs.form.reset()">
+              @click="$refs.form.reset()"
+            >
               <v-icon>clear</v-icon>Clear
             </v-btn>
-            <v-spacer/>
+            <v-spacer />
             <v-btn
-              @click="addVillage()"
+              @click="addWard()"
               :disabled="$v.$invalid || active.length === 0"
               class="white--text"
               color="deep-purple accent-4"
-              depressed><v-icon left>how_to_reg</v-icon>Add</v-btn>
+              depressed
+            >
+              <v-icon left>how_to_reg</v-icon>Add
+            </v-btn>
           </v-card-actions>
         </v-card>
       </v-flex>
-      <v-spacer/>
+      <v-spacer />
     </v-layout>
   </v-container>
 </template>
 <script>
 import axios from 'axios'
 import { required } from 'vuelidate/lib/validators'
+import { generalMixin } from '@/generalMixin'
 
 const backendServer = process.env.VUE_APP_BACKEND_SERVER
 
 export default {
+  mixins: [generalMixin],
   validations: {
     name: { required }
   },
@@ -112,13 +124,13 @@ export default {
     }
   },
   methods: {
-    addVillage () {
+    addWard () {
       this.$store.state.dynamicProgress = true
-      this.$store.state.progressTitle = 'Saving Village'
+      this.$store.state.progressTitle = 'Saving Facility'
       let formData = new FormData()
       formData.append('name', this.name)
       formData.append('parent', this.active[0])
-      axios.post(backendServer + '/addVillage/', formData, {
+      axios.post(backendServer + '/addWard/', formData, {
         headers: {
           'Content-Type': 'multipart/form-data'
         }
@@ -130,25 +142,12 @@ export default {
         this.$refs.form.reset()
         this.$store.state.dynamicProgress = false
         this.alertSuccess = true
-        this.alertMsg = 'Village added successfully'
+        this.alertMsg = 'Ward added successfully'
       }).catch((err) => {
         this.$store.state.dynamicProgress = false
         this.alertFail = true
-        this.alertMsg = 'This village was not added, ensure name is not used'
+        this.alertMsg = 'This ward was not added, ensure name is not used'
         console.log(err.response.data.error)
-      })
-    },
-    getLocation (item) {
-      console.log(item);
-      let query
-      if(!item.typeTag) {
-        query = '?type=&checkChild=' + false + '&lastLocationType=ward'
-      } else{
-        query = '?type=' + item.typeTag + '&checkChild=' + false + '&id=' + item.id + '&lastLocationType=ward'
-      }
-      axios.get(backendServer + '/locationTree' + query).then ((data) => {
-        item.children.push(...data.data)
-        return item;
       })
     }
   },
@@ -156,7 +155,7 @@ export default {
     nameErrors () {
       const errors = []
       if (!this.$v.name.$dirty) return errors
-      !this.$v.name.required && errors.push('District Name is required')
+      !this.$v.name.required && errors.push('Ward Name is required')
       return errors
     },
     items () {
@@ -167,6 +166,9 @@ export default {
         }
       ]
     }
+  },
+  created () {
+    this.lastLocationType = 'district'
   }
 }
 </script>

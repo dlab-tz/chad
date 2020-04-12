@@ -60,14 +60,14 @@ module.exports = function(rpFnc) {
           callback(err, data);
         });
     },
-    getFacilities(id, callback) {
+    getWards(id, callback) {
       let filter = {};
       if (id) {
         filter = {
           _id: id,
         };
       }
-      models.FacilitiesModel.find(filter)
+      models.WardsModel.find(filter)
         .populate('parent')
         .lean()
         .exec({}, (err, data) => {
@@ -86,6 +86,24 @@ module.exports = function(rpFnc) {
         };
       }
       models.VillagesModel.find(filter)
+        .populate('parent')
+        .lean()
+        .exec({}, (err, data) => {
+          if (err) {
+            winston.error(err);
+            return callback('Unexpected error occured,please retry');
+          }
+          callback(err, data);
+        });
+    },
+    getFacilities(id, callback) {
+      let filter = {};
+      if (id) {
+        filter = {
+          _id: id,
+        };
+      }
+      models.FacilitiesModel.find(filter)
         .populate('parent')
         .lean()
         .exec({}, (err, data) => {
@@ -167,7 +185,7 @@ module.exports = function(rpFnc) {
         }
       );
     },
-    getSubmissions(startDate, endDate, callback) {
+    getSubmissions(startDate, endDate, formID, model, callback) {
       let filter = {};
       if (startDate || endDate) {
         filter.today = {
@@ -175,7 +193,7 @@ module.exports = function(rpFnc) {
           $lte: endDate,
         };
       }
-      this.generateSubmissionSchema(schemaFields => {
+      this.generateSubmissionSchema(formID, (schemaFields) => {
         let submissionSchema = new mongoose.Schema(schemaFields);
         let connection = mongoose.createConnection(mongoURI, {
           useNewUrlParser: true,
@@ -184,10 +202,7 @@ module.exports = function(rpFnc) {
           winston.error(`An error occured while connecting to DB ${database}`);
         });
         connection.once('open', () => {
-          const SubmissionModel = connection.model(
-            'Submissions',
-            submissionSchema
-          );
+          const SubmissionModel = connection.model(model, submissionSchema);
           SubmissionModel.find(filter)
             .lean()
             .exec({}, (err, data) => {
@@ -200,30 +215,28 @@ module.exports = function(rpFnc) {
         });
       });
     },
-    generateSubmissionSchema(callback) {
+    generateSubmissionSchema(formID, callback) {
       let schemaFields = {};
-      let householdFormID = config.getConf('aggregator:householdForm:id');
-      this.downloadJSONForm(householdFormID, (err, response, householdForm) => {
+      this.downloadJSONForm(formID, (err, response, householdForm) => {
         householdForm = JSON.parse(householdForm);
-        async.each(
-          householdForm.children,
-          (field, nxtField) => {
-            getFormField(field, schemaFields, () => {
-              return nxtField();
-            });
-          },
-          () => {
-            this.addOtherSchemaFields(schemaFields, () => {
-              return callback(schemaFields);
-            });
-          }
-        );
+        async.each(householdForm.children, (field, nxtField) => {
+          getFormField(field, schemaFields, () => {
+            return nxtField();
+          });
+        }, () => {
+          this.addOtherSchemaFields(schemaFields, () => {
+            return callback(schemaFields);
+          });
+        });
       });
     },
     addOtherSchemaFields(schemaFields, callback) {
       //add geolocation
       schemaFields['_geolocation'] = {
         type: [],
+      };
+      schemaFields.submissionID = {
+        type: 'String',
       };
       // add referal ID
       if (
@@ -280,43 +293,37 @@ module.exports = function(rpFnc) {
       schemaFields.referalStatus.type = 'String';
       return callback();
     },
-    saveSubmission(submission) {
+    saveSubmission(submission, formID, model, callback) {
       let saveSubmission = {};
-      this.generateSubmissionSchema(schemaFields => {
+      this.generateSubmissionSchema(formID, (schemaFields) => {
         cleanKeys(submission, saveSubmission, () => {
-          async.eachOf(
-            saveSubmission,
-            (submittedData, key, nxtData) => {
-              if (!schemaFields.hasOwnProperty(key)) {
-                delete saveSubmission[key];
-              }
-              return nxtData();
-            },
-            () => {
-              let submissionSchema = new mongoose.Schema(schemaFields);
-              let connection = mongoose.createConnection(mongoURI, {
-                useNewUrlParser: true,
-              });
-              connection.on('error', () => {
-                winston.error(
-                  `An error occured while connecting to DB ${database}`
-                );
-              });
-              connection.once('open', () => {
-                const SubmissionModel = connection.model(
-                  'Submissions',
-                  submissionSchema
-                );
-                let newSubmission = new SubmissionModel(saveSubmission);
-                newSubmission.save((err, data) => {
-                  connection.close();
-                  if (err) {
-                    winston.error(err);
-                  }
-                });
-              });
+          async.eachOf(saveSubmission, (submittedData, key, nxtData) => {
+            if (!schemaFields.hasOwnProperty(key)) {
+              delete saveSubmission[key];
             }
-          );
+            return nxtData();
+          }, () => {
+            let submissionSchema = new mongoose.Schema(schemaFields);
+            let connection = mongoose.createConnection(mongoURI, {
+              useNewUrlParser: true,
+            });
+            connection.on('error', () => {
+              winston.error(
+                `An error occured while connecting to DB ${database}`
+              );
+            });
+            connection.once('open', () => {
+              const SubmissionModel = connection.model(model, submissionSchema);
+              let newSubmission = new SubmissionModel(saveSubmission);
+              newSubmission.save((err, data) => {
+                connection.close();
+                if (err) {
+                  winston.error(err);
+                }
+                return callback(err)
+              });
+            });
+          });
         });
       });
 
@@ -362,8 +369,29 @@ module.exports = function(rpFnc) {
         }
       }
     },
-    updateReferal(referalID, referalStatus, HFSphone, callback) {
-      this.generateSubmissionSchema(schemaFields => {
+    addReferals(referal, callback) {
+      if (mongoUser && mongoPasswd) {
+        var uri = `mongodb://${mongoUser}:${mongoPasswd}@${mongoHost}:${mongoPort}/${database}`;
+      } else {
+        var uri = `mongodb://${mongoHost}:${mongoPort}/${database}`;
+      }
+      let Referal = new models.ReferalsModel({
+        ...referal
+      });
+      Referal.save((err, data) => {
+        if (err) {
+          winston.error(err);
+          res.status(500).json({
+            error: 'Internal error occured while saving referals',
+          });
+        } else {
+          winston.info('Referal saved successfully');
+        }
+        return callback(err);
+      });
+    },
+    updateReferal(referalID, referalStatus, HFSphone, formID, callback) {
+      this.generateSubmissionSchema(formID, schemaFields => {
         let submissionSchema = new mongoose.Schema(schemaFields);
         let connection = mongoose.createConnection(mongoURI, {
           useNewUrlParser: true,
@@ -634,7 +662,10 @@ module.exports = function(rpFnc) {
       let query = {
         odkUsername: username,
       };
-      models.CHAModel.find(query, (err, data) => {
+      models.CHAModel.find(query)
+      .populate('village')
+      .lean()
+      .exec({}, (err, data) => {
         if (err) {
           return callback(err);
         }
@@ -654,9 +685,9 @@ module.exports = function(rpFnc) {
     },
     getFacilityFromVillage(villageId, callback) {
       let query = {
-        _id: villageId,
+        parent: villageId,
       };
-      models.VillagesModel.find(query, (err, data) => {
+      models.FacilitiesModel.find(query, (err, data) => {
         if (err) {
           return callback(err);
         }
@@ -664,12 +695,10 @@ module.exports = function(rpFnc) {
       });
     },
     downloadJSONForm(formId, callback) {
+      formId = formId.toString()
       winston.info('Getting online XLSForm in JSON format');
-      let username = config.getConf('aggregator:user');
-      let password = config.getConf('aggregator:password');
+      let token = config.getConf('aggregator:token');
       let host = config.getConf('aggregator:host');
-      let auth =
-        'Basic ' + new Buffer(username + ':' + password).toString('base64');
       let url = new URI(host)
         .segment('/api/v1/forms')
         .segment(formId)
@@ -678,7 +707,7 @@ module.exports = function(rpFnc) {
       let options = {
         url: url,
         headers: {
-          Authorization: auth,
+          Authorization: `Token ${token}`
         },
       };
       request.get(options, (err, res, body) => {

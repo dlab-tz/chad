@@ -8,12 +8,14 @@ const jwt = require('jsonwebtoken')
 const async = require('async')
 var express = require('express')
 const jsoncsv = require('json-csv');
+const uuid4 = require('uuid/v4');
 var router = express.Router()
 const config = require('../config')
 const mongo = require('../mongo')()
 const rapidpro = require('../rapidpro')
 const models = require('../models')
 const aggregator = require('../aggregator')
+const mixin = require('../mixin')
 const mongoUser = config.getConf("DB_USER")
 const mongoPasswd = config.getConf("DB_PASSWORD")
 const mongoHost = config.getConf("DB_HOST")
@@ -405,7 +407,7 @@ router.post('/addDistrict', (req, res) => {
   })
 })
 
-router.post('/addFacility', (req, res) => {
+router.post('/addWard', (req, res) => {
   const form = new formidable.IncomingForm();
   form.parse(req, (err, fields, files) => {
     winston.info("Received a request to add a facility")
@@ -415,21 +417,21 @@ router.post('/addFacility', (req, res) => {
       var uri = `mongodb://${mongoHost}:${mongoPort}/${database}`;
     }
     mongoose.connect(uri, {}, () => {
-      let Facility = new models.FacilitiesModel({
+      let Ward = new models.WardsModel({
         name: fields.name,
         parent: fields.parent
       })
-      Facility.save((err, data) => {
+      Ward.save((err, data) => {
         if (err) {
           winston.error(err)
           res.status(500).json({
             error: "Internal error occured"
           })
         } else {
-          winston.info("Facility saved successfully")
-          res.status(200).json({
-            id: data._id
-          })
+          winston.info("Ward saved successfully")
+          res.status(200).json({id: data._id})
+          data = JSON.parse(JSON.stringify(data))
+          aggregator.addLocationToXLSForm(data._id, fields.name, fields.parent, 'wards', () => {})
         }
       })
     })
@@ -468,6 +470,38 @@ router.post('/addVillage', (req, res) => {
               data = JSON.parse(JSON.stringify(data))
               aggregator.addLocationToXLSForm(villageId, fields.name, data[0].parent.parent, 'villages', () => {})
             }
+          })
+        }
+      })
+    })
+  })
+})
+
+router.post('/addFacility', (req, res) => {
+  const form = new formidable.IncomingForm();
+  form.parse(req, (err, fields, files) => {
+    winston.info("Received a request to add a facility")
+    if (mongoUser && mongoPasswd) {
+      var uri = `mongodb://${mongoUser}:${mongoPasswd}@${mongoHost}:${mongoPort}/${database}`;
+    } else {
+      var uri = `mongodb://${mongoHost}:${mongoPort}/${database}`;
+    }
+    let parents = JSON.parse(fields.parent);
+    mongoose.connect(uri, {}, () => {
+      let Facility = new models.FacilitiesModel({
+        name: fields.name,
+        parent: [...parents]
+      })
+      Facility.save((err, data) => {
+        if (err) {
+          winston.error(err)
+          res.status(500).json({
+            error: "Internal error occured"
+          })
+        } else {
+          winston.info("Facility saved successfully")
+          res.status(200).json({
+            id: data._id
           })
         }
       })
@@ -694,7 +728,7 @@ router.post('/usernameExist', (req, res) => {
 router.post('/addHFS', (req, res) => {
   const form = new formidable.IncomingForm();
   form.parse(req, (err, fields, files) => {
-    winston.info("Received a request to add a CHA")
+    winston.info("Received a request to add a HFS")
     if (mongoUser && mongoPasswd) {
       var uri = `mongodb://${mongoUser}:${mongoPasswd}@${mongoHost}:${mongoPort}/${database}`;
     } else {
@@ -747,8 +781,10 @@ router.post('/addHFS', (req, res) => {
 router.get('/getSubmissions', (req, res) => {
   let startDate = req.query.startDate
   let endDate = req.query.endDate
+  let formName = req.query.form
   winston.info("Receved request to get submission data")
-  mongo.getSubmissions(startDate, endDate, (err, data) => {
+  let form = mixin.getAggFormDetails(formName)
+  mongo.getSubmissions(startDate, endDate, form.id, form.model, (err, data) => {
     if (err) {
       res.status(500).send()
     } else {
@@ -757,12 +793,145 @@ router.get('/getSubmissions', (req, res) => {
   })
 })
 
-router.get('/getSubmissionsReport', (req, res) => {
+router.get('/getCOVIDCases', (req, res) => {
   let month = req.query.month
   let startDate = moment(month, "YYYY-MM").startOf('month').format('YYYY-MM-DD')
   let endDate = moment(month, "YYYY-MM").endOf('month').format('YYYY-MM-DD')
   winston.info("Receved request to get submission data")
-  mongo.getSubmissions(startDate, endDate, (err, data) => {
+  let form = mixin.getAggFormDetails('covid19')
+  mongo.getSubmissions(startDate, endDate, form.id, form.model, (err, data) => {
+    if (err) {
+      res.status(500).send()
+    } else {
+      let report = []
+      let tmpName = uuid4();
+      const promises = []
+      aggregator.downloadXLSForm(form.id, tmpName, err => {
+        mixin.getWorkbook(__dirname + '/../' + tmpName + '.xlsx', chadWorkbook => {
+          let chadChoicesWorksheet = chadWorkbook.getWorksheet('choices');
+          for (let submission of data) {
+            promises.push(new Promise((resolve, reject) => {
+              let fullname
+              let village
+              let ward
+              let district
+              let region
+              async.parallel([
+                (callback) => {
+                  mongo.getCHAByUsername(submission.username, (err, user) => {
+                    if(user.length === 0) {
+                      return callback(null)
+                    }
+                    fullname = user[0].firstName + ' ' + user[0].otherName + ' ' + user[0].surname
+                    village = user[0].village.name
+                    mongo.getWards(user[0].village.parent, (err, wards) => {
+                      if(wards.length > 0) {
+                        ward = wards[0].name
+                        district = wards[0].parent.name
+                        mongo.getRegions(wards[0].parent.parent, (err, regions) => {
+                          if(regions.length > 0) {
+                            region = regions[0].name
+                            return callback(null)
+                          } else {
+                            return callback(null)
+                          }
+                        })
+                      } else {
+                        return callback(null)
+                      }
+                    })
+                  })
+                }
+              ], () => {
+                let baseInfo = {
+                  username: submission.username,
+                  chw: fullname,
+                  village,
+                  ward,
+                  district,
+                  region
+                }
+                if(!submission.rp_patient) {
+                  return resolve()
+                }
+                for(let patient of submission.rp_patient) {
+                  if(!patient.body_examination_conditions) {
+                    continue
+                  }
+                  let conditions = patient.body_examination_conditions.split(' ')
+                  if(conditions.length === 0) {
+                    continue;
+                  }
+                  let symptoms = []
+                  for(let condition of conditions) {
+                    chadChoicesWorksheet.eachRow((chadRows, chadRowNum) => {
+                      if (chadRows.values.includes('covid_symptoms') && chadRows.values.includes(condition)) {
+                        symptoms.push(chadRows.values[chadRows.values.length - 1])
+                      }
+                    })
+                  }
+                  if(symptoms.length > 0) {
+                    report.push({
+                      ...baseInfo,
+                      name: patient.fullname,
+                      age: patient.age,
+                      gender: patient.gender,
+                      traveledOut: patient.traveled_out,
+                      startDateSick: patient.start_date_sick,
+                      symptoms,
+                      month
+                    })
+                  }
+                }
+                return resolve()
+              })
+            }))
+          }
+          Promise.all(promises).then(() => {
+            let fields = [{
+              name: 'gender',
+              label: 'Gender',
+            }, {
+              name: 'month',
+              label: 'Month'
+            }, {
+                name: 'village',
+                label: 'Village',
+              }, {
+                name: 'district',
+                label: 'District',
+              }, {
+                name: 'region',
+                label: 'Region',
+              }, {
+                name: 'startDateSick',
+                label: 'Start Date Sick',
+              }
+            ];
+            jsoncsv.buffered(report, {
+              fields: fields
+            }, (err, csv) => {
+              console.log('here');
+              res.status(200).json({
+                report,
+                csv
+              })
+            })
+          })
+        })
+      })
+    }
+  })
+})
+
+router.get('/getSubmissionsReport', (req, res) => {
+  let month = req.query.month
+  let startDate = moment(month, "YYYY-MM").startOf('month').format('YYYY-MM-DD')
+  let endDate = moment(month, "YYYY-MM").endOf('month').format('YYYY-MM-DD')
+  let formName = req.query.form
+  winston.info("Receved request to get submission data")
+  let form = mixin.getAggFormDetails(formName)
+  mongo.getSubmissions(startDate, endDate, form.id, form.model, (err, data) => {
     if (err) {
       res.status(500).send()
     } else {
@@ -890,13 +1059,17 @@ router.get('/locationTree', (req, res) => {
     childModel = "FacilitiesModel"
     typeTag = "district"
   } else if (type === 'district') {
-    model = 'FacilitiesModel'
+    model = 'WardsModel'
     childModel = "VillagesModel"
-    typeTag = "facility"
-  } else {
+    typeTag = "ward"
+  } else if (type === 'ward') {
     model = 'VillagesModel'
-    childModel = null
+    childModel = 'FacilitiesModel'
     typeTag = "village"
+  } else {
+    model = 'FacilitiesModel'
+    childModel = null
+    typeTag = "facility"
   }
 
   let query

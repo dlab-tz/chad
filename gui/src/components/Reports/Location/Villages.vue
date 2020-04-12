@@ -219,7 +219,7 @@ export default {
       loading: false,
       editDialog: false,
       village: {},
-      headers: [{ sortable: false, align: 'left' }, { text: "Name", value: "name" }, { text: "Facility", value: "facility", align: 'right' }]
+      headers: [{ sortable: false, align: 'left' }, { text: "Name", value: "name" }, { text: "Ward", value: "ward", align: 'right' }]
     };
   },
   methods: {

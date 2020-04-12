@@ -117,22 +117,12 @@ app.get('/:aggregatorAccount/formList', (req, res) => {
 });
 
 app.get('/:aggregatorAccount/forms/:id/form.xml', (req, res) => {
-  winston.info(
-    'Received a request to download form with id ' +
-    req.params.id +
-    ' from account ' +
-    req.params.aggregatorAccount
-  );
-  aggregator.forms(
-    req.params.aggregatorAccount,
-    req.params.id,
-    req,
-    (err, response, body) => {
-      winston.info('Sending data for form with id ' + req.params.id);
-      res.set(response.headers);
-      res.status(response.statusCode).send(body);
-    }
-  );
+  winston.info('Received a request to download form with id ' + req.params.id + ' from account ' + req.params.aggregatorAccount);
+  aggregator.forms(req.params.aggregatorAccount, req.params.id, req, (err, response, body) => {
+    winston.info('Sending data for form with id ' + req.params.id);
+    res.set(response.headers);
+    res.status(response.statusCode).send(body);
+  });
 });
 
 app.post('/:aggregatorAccount/submission', (req, res) => {
@@ -148,47 +138,52 @@ app.post('/:aggregatorAccount/submission', (req, res) => {
           mergeAttrs: true,
         },
         function (err, result) {
-          let houseHoldFormName = config.getConf(
-            'aggregator:householdForm:name'
-          );
-          if (!result[houseHoldFormName]) {
-            aggregator.submitToAggregator(
-              req,
-              files[fileName].path,
-              (err, response, body) => {
-                res.set(response.headers);
-                res.status(response.statusCode).send(body);
+          let forms = config.getConf('aggregator:forms')
+          let aggregatorForm = {}
+          for(let form of forms) {
+            for(let ky in result) {
+              if(result[ky].id && result[ky].id === form.name) {
+                aggregatorForm = form
+                break;
               }
-            );
+            }
+            if(aggregatorForm.name) {
+              break;
+            }
+          }
+          if(!aggregatorForm.name) {
+            aggregator.submitToAggregator(req, files[fileName].path, (err, response, body) => {
+              res.set(response.headers);
+              res.status(response.statusCode).send(body);
+            });
           } else {
-            mongo.generateSubmissionSchema(schemaFields => {
-              mixin.convertSubmissionToSchemaFormat(
-                result,
-                schemaFields,
-                () => {
-                  mixin.flattenSubmission(result, submission => {
-                    aggregator.newSubmission(
-                      submission,
-                      (err, response, body) => {
-                        if (
-                          err ||
-                          (response.statusCode &&
-                            (response.statusCode < 200 ||
-                              response.statusCode > 299))
-                        ) {
-                          res.status(500).send();
-                        } else {
-                          res.status(201).send();
-                        }
+            mongo.generateSubmissionSchema(aggregatorForm.id, (schemaFields) => {
+              mixin.convertSubmissionToSchemaFormat(result, schemaFields, () => {
+                mixin.flattenSubmission(result, submission => {
+                  if(aggregatorForm.name === 'household_visit') {
+                    aggregator.newHouseholdSubmission(submission, aggregatorForm, (err) => {
+                      if (err) {
+                        res.status(500).send();
+                      } else {
+                        res.status(201).send();
                       }
-                    );
-                  });
-                }
-              );
+                    });
+                  } else if(aggregatorForm.name === 'covid19') {
+                    aggregator.newCOVIDSubmission(submission, aggregatorForm, (err) => {
+                      winston.error('Err ' + err)
+                      return res.status(500).send()
+                      if (err) {
+                        res.status(500).send();
+                      } else {
+                        res.status(201).send();
+                      }
+                    })
+                  }
+                });
+              });
             });
           }
-        }
-      );
+        });
     });
   });
 });
@@ -233,8 +228,9 @@ app.get('/updateReferalStatus', (req, res) => {
     return;
   }
   res.status(200).send();
-  mongo.updateReferal(referalID, status, HFSphone, () => {
-    winston.error('done');
+  let form = mixin.getAggFormDetails('household_visit')
+  mongo.updateReferal(referalID, status, HFSphone, form.id, () => {
+    winston.info('Done updating referral');
   });
 });
 

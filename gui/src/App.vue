@@ -59,11 +59,11 @@
               </v-list-tile-title>
             </v-list-tile>
             <v-list-tile
-              to="addFacility"
+              to="addWard"
               v-if="$store.state.auth.role === 'Admin'"
             >
               <v-list-tile-title>
-                <v-icon>add</v-icon>Add Facility
+                <v-icon>add</v-icon>Add Ward
               </v-list-tile-title>
             </v-list-tile>
             <v-list-tile
@@ -72,6 +72,14 @@
             >
               <v-list-tile-title>
                 <v-icon>add</v-icon>Add Village
+              </v-list-tile-title>
+            </v-list-tile>
+            <v-list-tile
+              to="addFacility"
+              v-if="$store.state.auth.role === 'Admin'"
+            >
+              <v-list-tile-title>
+                <v-icon>add</v-icon>Add Facility
               </v-list-tile-title>
             </v-list-tile>
           </v-list>
@@ -135,6 +143,14 @@
             >
               <v-list-tile-title>
                 <v-icon>list</v-icon>HFS
+              </v-list-tile-title>
+            </v-list-tile>
+            <v-list-tile
+              to="COVID19Cases"
+              v-if="$store.state.auth.role === 'Admin'"
+            >
+              <v-list-tile-title>
+                <v-icon>list</v-icon>COVID-19 Suspected Cases
               </v-list-tile-title>
             </v-list-tile>
             <v-list-tile

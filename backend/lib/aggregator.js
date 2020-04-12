@@ -101,12 +101,16 @@ const publishForm = (formId, formName, callback) => {
 };
 
 const addLocationToXLSForm = (id, name, parent, type, callback) => {
-  let householdFormID = config.getConf('aggregator:householdForm:id');
-  let householdFormName = uuid4();
-  downloadXLSForm(householdFormID, householdFormName, err => {
-    mixin.getWorkbook(
-      __dirname + '/' + householdFormName + '.xlsx',
-      chadWorkbook => {
+  let tmpName = uuid4();
+  let formsWithLocations = config.getConf('aggregator:formsWithLocations');
+  let formDetails = config.getConf('aggregator:forms')
+  async.eachSeries(formsWithLocations, (form, nxt) => {
+    let formDetail = formDetails.find((formDet) => {
+      return formDet.name === form
+    })
+    winston.info('Updating locations for aggregator form ' + formDetail.name)
+    downloadXLSForm(formDetail.id, tmpName, err => {
+      mixin.getWorkbook(__dirname + '/' + tmpName + '.xlsx', chadWorkbook => {
         let chadChoicesWorksheet = chadWorkbook.getWorksheet('choices');
         let lastRow = chadChoicesWorksheet.lastRow;
         let getRowInsert = chadChoicesWorksheet.getRow(++lastRow.number);
@@ -119,29 +123,21 @@ const addLocationToXLSForm = (id, name, parent, type, callback) => {
         getRowInsert.getCell(4).value = name;
         getRowInsert.getCell(5).value = parent;
         getRowInsert.commit();
-        winston.info('writting new house into local household_visit XLSForm');
         chadWorkbook.xlsx
-          .writeFile(__dirname + '/' + householdFormName + '.xlsx')
+          .writeFile(__dirname + '/' + tmpName + '.xlsx')
           .then(() => {
-            winston.info(
-              'Updating the online CHAD XLSForm with the local household XLSForm'
-            );
-            publishForm(
-              householdFormID,
-              householdFormName,
-              (err, res, body) => {
-                fs.unlink(
-                  __dirname + '/' + householdFormName + '.xlsx',
-                  () => {}
-                );
-                winston.info('Online household XLSForm Updated');
-                return callback(err, res, body);
-              }
-            );
+            publishForm(formDetail.id, tmpName, (err, res, body) => {
+              fs.unlink(__dirname + '/' + tmpName + '.xlsx', () => {});
+              winston.info('Done Updating locations for aggregator form ' + formDetail.name)
+              return nxt()
+            });
           });
-      }
-    );
-  });
+      });
+    });
+  }, () => {
+    winston.info('Done updating locations for all aggregator forms')
+    return callback();
+  })
 };
 
 const downloadXLSForm = (formId, formName, callback) => {
@@ -316,7 +312,79 @@ const shareFormWithUser = (formId, username, callback) => {
   });
 };
 
-const newSubmission = (submission, callback) => {
+const newCOVIDSubmission = (submission, aggregatorForm, callback) => {
+  let tmpName = uuid4();
+  let submissionID = uuid4()
+  submission.submissionID = submissionID
+  downloadXLSForm(aggregatorForm.id, tmpName, err => {
+    mixin.getWorkbook(__dirname + '/' + tmpName + '.xlsx', chadWorkbook => {
+      let chadChoicesWorksheet = chadWorkbook.getWorksheet('choices');
+      let [patients, key] = mixin.getDataFromJSON(submission, 'rp_patient');
+      if(patients && Array.isArray(patients) && patients.length > 0) {
+        async.eachSeries(patients, (patient, nxtPatient) => {
+          if(!patient.body_examination_conditions) {
+            return nxtPatient()
+          }
+          let conditions = patient.body_examination_conditions.split(' ')
+          if(conditions.length === 0) {
+            return nxtPatient()
+          }
+          if(conditions.length < 3 && !conditions.includes('difficult_breathing')) {
+            winston.info('Not enough COVID-19 symptoms to send alert')
+            return nxtPatient()
+          }
+          let referalID = shortid.generate();
+          let sms = `ID ${referalID}, Name: ${patient.fullname}, Age ${patient.age}, Gender: ${patient.gender}, symptoms: `
+          let symptoms = '';
+          let conditionsText = []
+          async.eachSeries(conditions, (condition, nxtCond) => {
+            const promises = [];
+            chadChoicesWorksheet.eachRow((chadRows, chadRowNum) => {
+              promises.push(
+                new Promise((resolve, reject) => {
+                  if (chadRows.values.includes('covid_symptoms') && chadRows.values.includes(condition)) {
+                    if (symptoms) {
+                      symptoms += ', ';
+                    }
+                    symptoms += chadRows.values[chadRows.values.length - 1];
+                    conditionsText.push(chadRows.values[chadRows.values.length - 1])
+                    resolve();
+                  } else {
+                    resolve();
+                  }
+                })
+              );
+            });
+            Promise.all(promises).then(() => {
+              return nxtCond();
+            });
+          }, () => {
+            let referal = {
+              referalID,
+              submissionID,
+              patient: {
+                age: patient.age,
+                gender: patient.gender,
+                name: patient.fullname
+              },
+              conditions: conditionsText,
+              reportingCHA: submission.username
+            }
+            mongo.addReferals(referal,(err)=>{})
+            sms += symptoms;
+            rapidpro.alertReferal(submission.username, sms, true);
+            return nxtPatient();
+          });
+        })
+      }
+      mongo.saveSubmission(submission, aggregatorForm.id, aggregatorForm.model, (err) => {
+        return callback(err)
+      })
+    })
+  })
+}
+
+const newHouseholdSubmission = (submission, aggregatorForm, model, callback) => {
   //acknowlodge recipient
   // res.status(200).send();
   // winston.info('New submission received');
@@ -333,31 +401,15 @@ const newSubmission = (submission, callback) => {
         async.series({
             new_house: callback => {
               if (house_name == 'add_new') {
-                let [new_house_name] = mixin.getDataFromJSON(
-                  submission,
-                  'house_name_new'
-                );
-                let [new_house_number] = mixin.getDataFromJSON(
-                  submission,
-                  'house_number_new'
-                );
+                let [new_house_name] = mixin.getDataFromJSON(submission, 'house_name_new');
+                let [new_house_number] = mixin.getDataFromJSON(submission, 'house_number_new');
                 let [village] = mixin.getDataFromJSON(submission, 'village');
-                populateHouses(
-                  chadChoicesWorksheet,
-                  new_house_name,
-                  new_house_number,
-                  village,
-                  err => {
-                    winston.info(
-                      'writting new house into local household_visit XLSForm'
-                    );
-                    chadWorkbook.xlsx
-                      .writeFile(__dirname + '/' + householdFormName + '.xlsx')
-                      .then(() => {
-                        return callback(false, false);
-                      });
-                  }
-                );
+                populateHouses(chadChoicesWorksheet, new_house_name, new_house_number, village, err => {
+                  winston.info('writting new house into local household_visit XLSForm');
+                  chadWorkbook.xlsx.writeFile(__dirname + '/' + householdFormName + '.xlsx').then(() => {
+                    return callback(false, false);
+                  });
+                });
               } else {
                 return callback(false, false);
               }
@@ -917,7 +969,9 @@ const newSubmission = (submission, callback) => {
             }
           });
         }
-        mongo.saveSubmission(submission);
+        mongo.saveSubmission(submission, aggregatorForm.id, aggregatorForm.model, (err) => {
+          return callback(err)
+        });
       }
     );
   });
@@ -935,6 +989,7 @@ module.exports = {
   shareFormWithUser,
   formList,
   forms,
-  newSubmission,
+  newHouseholdSubmission,
+  newCOVIDSubmission,
   submitToAggregator,
 };

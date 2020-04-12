@@ -87,7 +87,7 @@ const addContact = (contact, callback) => {
   })
 }
 
-const alertReferal = (CHAUsername, sms) => {
+const alertReferal = (CHAUsername, sms, appendLocation) => {
   mongo.getCHAByUsername(CHAUsername, (err, cha) => {
     if (err) {
       winston.error(err)
@@ -97,54 +97,84 @@ const alertReferal = (CHAUsername, sms) => {
       winston.error('CHA details not found, cant send referral for ' + CHAUsername)
       return
     }
-    let villageId = cha[0].village
-    let CHAName = cha[0].firstName + ' ' + cha[0].surname
-    let CHANumber = cha[0].phone1
-    sms += `\\n CHA: ${CHAName}-${CHANumber}`
-    mongo.getFacilityFromVillage(villageId, (err, villageDetails) => {
-      if (err) {
-        winston.error(err)
-        return
-      }
-      try {
-        villageDetails = JSON.parse(JSON.stringify(villageDetails))
-      } catch (error) {
-        winston.error(error)
-      }
-      if (villageDetails.length == 0) {
-        winston.error('Village details not found, cant send referral for Village ' + villageId)
-        return
-      }
-      let facilityId = villageDetails[0].parent
-      mongo.getHFS(facilityId, (err, HFSs) => {
-        try {
-          HFSs = JSON.parse(JSON.stringify(HFSs))
-        } catch (error) {
-          winston.error(error)
+    let villageId = cha[0].village._id
+    location = cha[0].village.name
+    async.series({
+      getLocation: (callback) => {
+        if(!appendLocation) {
+          return callback(null)
         }
-        if (HFSs.length == 0) {
-          winston.error('No HFS found, cant send referral for facility ID' + facilityId)
-          return
-        }
-        let rp_ids = []
-        async.each(HFSs, (hfs, nxtHfs) => {
-          if (hfs.rapidproId) {
-            rp_ids.push(hfs.rapidproId)
-            return nxtHfs()
-          } else {
-            return nxtHfs()
-          }
-        }, () => {
-          if (rp_ids.length > 0) {
-            broadcast({
-              rapidpro_id: rp_ids,
-              sms
+        mongo.getWards(cha[0].village.parent, (err, wards) => {
+          if(wards.length > 0) {
+            location += ', ' + wards[0].name + ', ' + wards[0].parent.name
+            mongo.getRegions(wards[0].parent.parent, (err, regions) => {
+              if(regions.length > 0) {
+                location += ', ' + regions[0].name
+                return callback(null)
+              } else {
+                return callback(null)
+              }
             })
           } else {
-            winston.error('No rapidpro ID to send referral SMS for village ' + villageDetails.name)
+            return callback(null)
           }
         })
-      })
+      },
+      prepareMsg: (callback) => {
+        let CHAName = cha[0].firstName + ' ' + cha[0].surname
+        let CHANumber = cha[0].phone1
+        sms += `\n CHA: ${CHAName}-${CHANumber}`
+        if(appendLocation) {
+          sms += `\n Patient Location: ${location}`
+        }
+        mongo.getFacilityFromVillage(villageId, (err, facilityDetails) => {
+          if (err) {
+            winston.error(err)
+            return
+          }
+          try {
+            facilityDetails = JSON.parse(JSON.stringify(facilityDetails))
+          } catch (error) {
+            winston.error(error)
+          }
+          if (facilityDetails.length == 0) {
+            winston.error('Village details not found, cant send referral for Village ' + villageId)
+            return
+          }
+          let facilityId = facilityDetails[0]._id
+          for(let facility of facilityDetails) {
+            mongo.getHFS(facility.id, (err, HFSs) => {
+              try {
+                HFSs = JSON.parse(JSON.stringify(HFSs))
+              } catch (error) {
+                winston.error(error)
+              }
+              if (HFSs.length == 0) {
+                winston.error('No HFS found, cant send referral for facility ID' + facilityId)
+                return
+              }
+              let rp_ids = []
+              async.each(HFSs, (hfs, nxtHfs) => {
+                if (hfs.rapidproId) {
+                  rp_ids.push(hfs.rapidproId)
+                  return nxtHfs()
+                } else {
+                  return nxtHfs()
+                }
+              }, () => {
+                if (rp_ids.length > 0) {
+                  broadcast({
+                    rapidpro_id: rp_ids,
+                    sms
+                  })
+                } else {
+                  winston.error('No rapidpro ID to send referral SMS for facility ' + facilityDetails.name)
+                }
+              })
+            })
+          }
+        })
+      }
     })
   })
 }

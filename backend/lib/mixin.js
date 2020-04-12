@@ -5,6 +5,13 @@ const aggregator = require('./aggregator');
 const _ = require('lodash');
 
 module.exports = {
+  getAggFormDetails(name) {
+    let forms = config.getConf('aggregator:forms')
+    let form = forms.find((form) => {
+      return form.name === name
+    })
+    return form
+  },
   downloadJSONForm(callback) {
     let householdFormID = config.getConf('aggregator:householdForm:id');
     aggregator.downloadJSONForm(householdFormID, callback);

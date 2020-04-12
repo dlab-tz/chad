@@ -57,21 +57,38 @@
       </v-flex>
       <v-spacer></v-spacer>
     </v-layout>
-    <v-btn v-if='csvData.length > 0' color="primary" @click="downloadCSV">
-      <v-icon left>file_copy</v-icon>Download CSV
-    </v-btn>
+    <v-layout row wrap>
+      <v-flex xs5>
+        <v-btn v-if='csvData.length > 0' color="primary" @click="downloadCSV">
+          <v-icon left>file_copy</v-icon>Download CSV
+        </v-btn>
+      </v-flex>
+      <v-spacer></v-spacer>
+      <v-flex xs5>
+        <v-text-field
+          v-model="search"
+          label="Search"
+        ></v-text-field>
+      </v-flex>
+    </v-layout>
     <v-data-table
       :headers="reportHeader"
       :items="reportRows"
+      :search="search"
       hide-actions
       pagination.sync="pagination"
       item-key="id"
     >
       <template v-slot:items="props">
-        <td>{{monthFormatted}}</td>
+        <td class="text-xs-center">{{ props.item.month | monthFormatted }}</td>
+        <td class="text-xs-center">{{ props.item.name }}</td>
+        <td class="text-xs-center">{{ props.item.age }}</td>
+        <td class="text-xs-center">{{ props.item.gender }}</td>
+        <td class="text-xs-center">{{ props.item.symptoms.join(', ') }}</td>
         <td class="text-xs-center">{{ props.item.village }}</td>
-        <td class="text-xs-center">{{ props.item.chw }}</td>
-        <td class="text-xs-center">{{ props.item.househoulds }}</td>
+        <td class="text-xs-center">{{ props.item.ward }}</td>
+        <td class="text-xs-center">{{ props.item.district }}</td>
+        <td class="text-xs-center">{{ props.item.region }}</td>
       </template>
     </v-data-table>
   </v-container>
@@ -81,14 +98,28 @@ import axios from 'axios'
 import moment from 'moment'
 const backendServer = process.env.VUE_APP_BACKEND_SERVER
 export default {
+  filters: {
+    monthFormatted (value) {
+      if (!value) {
+        return null
+      }
+      return moment(value).format('MMMM YYYY')
+    }
+  },
   data () {
     return {
+      search: '',
       reportRows: [],
       reportHeader: [
         { text: 'Month', value: 'Month' },
+        { text: 'Full Name', value: 'name' },
+        { text: 'Age', value: 'age' },
+        { text: 'Gender', value: 'gender' },
+        { text: 'Symptoms', value: 'symptoms' },
         { text: 'Village', value: 'village' },
-        { text: 'CHW Name', value: 'chw' },
-        { text: 'Number of Households', value: 'househoulds' }
+        { text: 'Ward', value: 'ward' },
+        { text: 'District', value: 'district' },
+        { text: 'Region', value: 'region' }
       ],
       month: new Date().toISOString().substr(0, 7),
       monthMenu: false,
@@ -98,7 +129,7 @@ export default {
   methods: {
     generate () {
       axios
-        .get(backendServer + '/getSubmissionsReport?month=' + this.month + '&form=household_visit')
+        .get(backendServer + '/getCOVIDCases?month=' + this.month)
         .then(report => {
           this.reportRows = report.data.report
           this.csvData = report.data.csv

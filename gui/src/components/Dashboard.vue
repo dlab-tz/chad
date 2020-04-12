@@ -238,8 +238,7 @@ export default {
       let startDay = startDate[2]
       let endDay = endDate[2]
 
-      axios.get(backendServer + '/getSubmissions?startDate=' + this.startDate + '&endDate=' + this.endDate).then((households) => {
-        //axios.get(aggreatorServer + `/api/v1/data/${householdFormId}?${query}`).then((households) => {
+      axios.get(backendServer + '/getSubmissions?startDate=' + this.startDate + '&endDate=' + this.endDate + '&form=household_visit').then((households) => {
         let total_households = 0, houses = []
         for (let household of households.data) {
           let house_name = this.getDataFromJSON(household, 'house_name')

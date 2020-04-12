@@ -23,14 +23,27 @@
     "user": "ashaban",
     "password": "xxxxx",
     "token": "faba97475db86dfcf02c839eff9c41c234bcf261",
+    "forms": [{
+      "id": "8",
+      "name": "household_visit",
+      "model": "householdVisits"
+    }, {
+      "id": "12",
+      "name": "covid19",
+      "model": "COVID19"
+    }],
+    "formsWithLocations": [
+      "household_visit",
+      "covid19"
+    ],
     "householdForm": {
       "id": "8",
       "name": "household_visit"
     }
   },
   "rapidpro": {
-    "host": "http://18.222.220.16:8002",
-    "token": "979954289df10580de826fc13abcbebd73f0390c"
+    "host": "https://textit.in",
+    "token": "1c4d6805d3bda853f3e89b52d9262b0886fa68d5"
   },
   "google": {
     "spreadsheetId": "17rlf9se1ab3zVYqShQXqG4z-Aa_YAC-jaHI85vNITYs"

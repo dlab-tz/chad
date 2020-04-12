@@ -1,6 +1,40 @@
 const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
 
+let Referals = new mongoose.Schema({
+  referalID: {
+    type: String,
+    required: true
+  },
+  status: {
+    type: String,
+    default: 'pending'
+  },
+  reportingCHA: {
+    type: String,
+    required: true
+  },
+  conditions: [{
+    type: String
+  }],
+  submissionID: {
+    type: String
+  },
+  patient: {
+    age: {
+      type: Number
+    },
+    gender: {
+      type: String
+    },
+    name: {
+      type: String
+    },
+    maritalStatus: {
+      type: String
+    }
+  }
+})
 let Users = new mongoose.Schema({
   firstName: {
     type: String,
@@ -61,7 +95,7 @@ let Districts = new mongoose.Schema({
     required: true
   }
 })
-let Facilities = new mongoose.Schema({
+let Wards = new mongoose.Schema({
   name: {
     type: String,
     required: true
@@ -79,9 +113,20 @@ let Villages = new mongoose.Schema({
   },
   parent: {
     type: Schema.Types.ObjectId,
-    ref: 'Facilities',
+    ref: 'Wards',
     required: true
   }
+})
+let Facilities = new mongoose.Schema({
+  name: {
+    type: String,
+    required: true
+  },
+  parent: [{
+    type: Schema.Types.ObjectId,
+    ref: 'Villages',
+    required: true
+  }]
 })
 let HFS = new mongoose.Schema({
   firstName: {
@@ -93,8 +138,7 @@ let HFS = new mongoose.Schema({
   },
   surname: {
     type: String,
-    required: true,
-    unique: true
+    required: true
   },
   phone1: {
     type: String,
@@ -179,6 +223,7 @@ let PregnantWomen = new mongoose.Schema({
 
 let RegionsModel = mongoose.model('Regions', Regions)
 let DistrictsModel = mongoose.model('Districts', Districts)
+let WardsModel = mongoose.model('Wards', Wards)
 let FacilitiesModel = mongoose.model('Facilities', Facilities)
 let VillagesModel = mongoose.model('Villages', Villages)
 let HFSModel = mongoose.model('HFS', HFS)
@@ -186,14 +231,17 @@ let CHAModel = mongoose.model('CHA', CHA)
 let PregnantWomenModel = mongoose.model('PregnantWomen', PregnantWomen)
 let RolesModel = mongoose.model('Roles', Roles)
 let UsersModel = mongoose.model('Users', Users)
+let ReferalsModel = mongoose.model('Referals', Referals)
 module.exports = {
   RegionsModel,
   DistrictsModel,
+  WardsModel,
   FacilitiesModel,
   VillagesModel,
   HFSModel,
   CHAModel,
   PregnantWomenModel,
   UsersModel,
-  RolesModel
+  RolesModel,
+  ReferalsModel
 }
